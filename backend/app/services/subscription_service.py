@@ -81,7 +81,7 @@ class SubscriptionService:
             import uuid
 
             invite_token = str(uuid.uuid4())
-            success, invite_link = tg_bot.create_invite_link(
+            success, _, invite_link = tg_bot.create_invite_link(
                 product.telegram_group.telegram_group_id, invite_token, user.id
             )
 

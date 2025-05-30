@@ -16,10 +16,10 @@ class SubscriptionSchema(Schema):
     updated_at = fields.DateTime(dump_only=True)
 
     # Include related information
-    user = fields.Nested("UserSchema", exclude=("subscriptions",), dump_only=True)
-    product = fields.Nested("ProductSchema", exclude=("subscriptions",), dump_only=True)
+    user = fields.Nested("UserSchema", only=("id", "email"), dump_only=True)
+    product = fields.Nested("ProductSchema", only=("id", "name", "description"), dump_only=True)
     telegram_group = fields.Nested(
-        "TelegramGroupSchema", exclude=("subscriptions",), dump_only=True
+        "TelegramGroupSchema", only=("id", "telegram_group_id", "telegram_group_name"), dump_only=True
     )
 
 
@@ -29,8 +29,8 @@ class SubscriptionRequestSchema(Schema):
     product_name = fields.Str()
 
     def validate(self, data):
-        if not data.get('product_id') and not data.get('product_name'):
-            raise ValidationError('Either product_id or product_name must be provided')
+        if not data.get("product_id") and not data.get("product_name"):
+            raise ValidationError("Either product_id or product_name must be provided")
         return data
 
 

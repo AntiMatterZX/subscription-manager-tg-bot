@@ -10,10 +10,13 @@ from telegram.ext import (
     ContextTypes,
     MessageHandler,
     filters,
+    ChatJoinRequestHandler,
 )
 from telegram.constants import ChatMemberStatus
 from telegram.error import TelegramError
 import threading
+from concurrent.futures import ThreadPoolExecutor
+
 
 # Configure logging
 logging.basicConfig(
@@ -24,20 +27,15 @@ logger = logging.getLogger(__name__)
 
 class TelegramGroupBotService:
     def __init__(self, bot_token: str = None):
-
         self.bot_token = bot_token
         self.application = Application.builder().token(bot_token).build()
         self.bot = Bot(token=bot_token)
 
-        # Store invite links with custom tokens
-        self.invite_links: Dict[str, Dict] = {}
-
-        # Store group information
-        self.groups: Dict[int, Dict] = {}
-
         # Threading for running bot alongside Flask
         self.bot_thread = None
         self.running = False
+        self.event_loop = None
+        self.executor = ThreadPoolExecutor(max_workers=4)
 
         self.setup_handlers()
 
@@ -49,25 +47,27 @@ class TelegramGroupBotService:
         # Chat member updates (bot added/removed, user joins/leaves)
         self.application.add_handler(
             ChatMemberHandler(
-                self.handle_chat_member_update, ChatMemberHandler.CHAT_MEMBER
+                self._handle_chat_member_update, ChatMemberHandler.CHAT_MEMBER
             )
         )
 
         # My chat member updates (specifically for bot being added/removed)
         self.application.add_handler(
             ChatMemberHandler(
-                self.handle_my_chat_member_update, ChatMemberHandler.MY_CHAT_MEMBER
+                self._handle_my_chat_member_update, ChatMemberHandler.MY_CHAT_MEMBER
             )
         )
 
         # Message handler for tracking joins via invite links
         self.application.add_handler(
             MessageHandler(
-                filters.StatusUpdate.NEW_CHAT_MEMBERS, self.handle_new_members
+                filters.StatusUpdate.NEW_CHAT_MEMBERS, self._handle_new_members
             )
         )
 
-    async def handle_my_chat_member_update(
+        self.application.add_handler(ChatJoinRequestHandler(self._handle_join_request))
+
+    async def _handle_my_chat_member_update(
         self, update: Update, context: ContextTypes.DEFAULT_TYPE
     ):
         """Handle bot being added or removed from groups"""
@@ -83,21 +83,19 @@ class TelegramGroupBotService:
                 ChatMemberStatus.MEMBER,
                 ChatMemberStatus.ADMINISTRATOR,
             ]:
-
-                await self.on_bot_added_to_group(chat, context)
+                await self._on_bot_added_to_group(chat, context)
 
             # Bot removed from group
             elif old_member.status in [
                 ChatMemberStatus.MEMBER,
                 ChatMemberStatus.ADMINISTRATOR,
             ] and new_member.status in [ChatMemberStatus.LEFT]:
-
-                await self.on_bot_removed_from_group(chat, context)
+                await self._on_bot_removed_from_group(chat, context)
 
         except Exception as e:
             logger.exception(f"Error handling my chat member update: {e}")
 
-    async def handle_chat_member_update(
+    async def _handle_chat_member_update(
         self, update: Update, context: ContextTypes.DEFAULT_TYPE
     ):
         """Handle regular chat member updates (users joining/leaving)"""
@@ -115,8 +113,7 @@ class TelegramGroupBotService:
                 ChatMemberStatus.ADMINISTRATOR,
                 ChatMemberStatus.RESTRICTED,
             ]:
-
-                await self.on_user_joined_group(chat, user, context)
+                await self._on_user_joined_group(chat, user, context)
 
             # User left the group
             elif old_member.status in [
@@ -124,13 +121,12 @@ class TelegramGroupBotService:
                 ChatMemberStatus.ADMINISTRATOR,
                 ChatMemberStatus.RESTRICTED,
             ] and new_member.status in [ChatMemberStatus.LEFT]:
-
-                await self.on_user_left_group(chat, user, context)
+                await self._on_user_left_group(chat, user, context)
 
         except Exception as e:
             logger.error(f"Error handling chat member update: {e}")
 
-    async def handle_new_members(
+    async def _handle_new_members(
         self, update: Update, context: ContextTypes.DEFAULT_TYPE
     ):
         """Handle new members joining via invite links"""
@@ -140,34 +136,31 @@ class TelegramGroupBotService:
 
             for member in new_members:
                 # Try to identify which invite link was used
-                invite_token = await self.identify_invite_token(
+                invite_token = await self._identify_invite_token(
                     chat.id, member.id, context
                 )
                 if invite_token:
-                    await self.on_user_joined_via_invite(
+                    await self._on_user_joined_via_invite(
                         chat, member, invite_token, context
                     )
 
         except Exception as e:
             logger.error(f"Error handling new members: {e}")
 
-    async def on_bot_added_to_group(self, chat, context: ContextTypes.DEFAULT_TYPE):
+    async def _on_bot_added_to_group(self, chat, context: ContextTypes.DEFAULT_TYPE):
         """Called when bot is added to a group"""
-        group_info = {
-            "id": chat.id,
-            "title": chat.title,
-            "type": chat.type,
-            "added_at": datetime.now().isoformat(),
-            "invite_links": {},
-        }
-
-        self.groups[chat.id] = group_info
 
         logger.info(f"🟢 Bot added to group: {chat.title} (ID: {chat.id})")
-        with self.app.app_context():
-            from app.services.telegram_group_service import TelegramGroupService
 
-            TelegramGroupService.create_or_update_group(chat.id, chat.title)
+        # Run Flask context operations in a thread
+        def run_in_flask_context():
+            with self.app.app_context():
+                from app.services.telegram_group_service import TelegramGroupService
+
+                TelegramGroupService.create_or_update_group(chat.id, chat.title)
+
+        # Execute in thread pool to avoid blocking
+        self.executor.submit(run_in_flask_context)
 
         # Send welcome message
         try:
@@ -185,29 +178,22 @@ class TelegramGroupBotService:
         except Exception as e:
             logger.error(f"Could not send welcome message: {e}")
 
-    async def on_bot_removed_from_group(self, chat, context: ContextTypes.DEFAULT_TYPE):
+    async def _on_bot_removed_from_group(
+        self, chat, context: ContextTypes.DEFAULT_TYPE
+    ):
         """Called when bot is removed from a group"""
         logger.info(f"🔴 Bot removed from group: {chat.title} (ID: {chat.id})")
 
-        # Clean up group data
-        if chat.id in self.groups:
-            del self.groups[chat.id]
+        # Run Flask context operations in a thread
+        def run_in_flask_context():
+            with self.app.app_context():
+                from app.services.telegram_group_service import TelegramGroupService
 
-        # Clean up invite links for this group
-        links_to_remove = [
-            link_id
-            for link_id, link_data in self.invite_links.items()
-            if link_data["chat_id"] == chat.id
-        ]
-        for link_id in links_to_remove:
-            del self.invite_links[link_id]
+                TelegramGroupService.mark_group_as_inactive(chat.id)
 
-        with self.app.app_context():
-            from app.services.telegram_group_service import TelegramGroupService
+        self.executor.submit(run_in_flask_context)
 
-            TelegramGroupService.mark_group_as_inactive(chat.id)
-
-    async def on_user_joined_group(
+    async def _on_user_joined_group(
         self, chat, user, context: ContextTypes.DEFAULT_TYPE
     ):
         """Called when a user joins the group"""
@@ -215,11 +201,11 @@ class TelegramGroupBotService:
             f"👤 User {user.full_name} (ID: {user.id}) joined group {chat.title}"
         )
 
-    async def on_user_left_group(self, chat, user, context: ContextTypes.DEFAULT_TYPE):
+    async def _on_user_left_group(self, chat, user, context: ContextTypes.DEFAULT_TYPE):
         """Called when a user leaves the group"""
         logger.info(f"👋 User {user.full_name} (ID: {user.id}) left group {chat.title}")
 
-    async def on_user_joined_via_invite(
+    async def _on_user_joined_via_invite(
         self, chat, user, invite_token: str, context: ContextTypes.DEFAULT_TYPE
     ):
         """Called when a user joins via a tracked invite link"""
@@ -227,44 +213,105 @@ class TelegramGroupBotService:
             f"🔗 User {user.full_name} (ID: {user.id}) joined {chat.title} via invite token: {invite_token}"
         )
 
-        # Update invite link usage
-        if invite_token in self.invite_links:
-            self.invite_links[invite_token]["usage_count"] += 1
-            self.invite_links[invite_token]["last_used"] = datetime.now().isoformat()
-            self.invite_links[invite_token]["users"].append(
-                {
-                    "user_id": user.id,
-                    "username": user.username,
-                    "full_name": user.full_name,
-                    "joined_at": datetime.now().isoformat(),
-                }
-            )
-            from app.services.subscription_service import SubscriptionService
-
+        # Run Flask context operations in a thread
+        def run_in_flask_context():
             with self.app.app_context():
+                from app.services.subscription_service import SubscriptionService
+
                 SubscriptionService.update_subscription_with_telegram_user(
                     invite_token, user.id, user.username
                 )
 
-    async def identify_invite_token(
+        self.executor.submit(run_in_flask_context)
+
+    async def _identify_invite_token(
         self, chat_id: int, user_id: int, context: ContextTypes.DEFAULT_TYPE
     ) -> Optional[str]:
         """Try to identify which invite link was used"""
-        # Simple approach - return the most recently created active invite for this chat
-        recent_invite = None
-        recent_time = None
+        return None
 
-        for token, link_data in self.invite_links.items():
-            if link_data["chat_id"] == chat_id and link_data["active"]:
-                if recent_time is None or link_data["created_at"] > recent_time:
-                    recent_time = link_data["created_at"]
-                    recent_invite = token
+    async def _handle_join_request(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ) -> None:
+        """
+        Handles chat join requests and approves/declines based on the invite link name.
+        """
+        join_request = update.chat_join_request
+        chat_id = join_request.chat.id
+        user_id = join_request.from_user.id
+        user_name = join_request.from_user.full_name
+        invite_link_name = (
+            join_request.invite_link.name if join_request.invite_link else "N/A"
+        )
+        invite_link_url = (
+            join_request.invite_link.invite_link if join_request.invite_link else "N/A"
+        )
 
-        return recent_invite
+        logger.info(
+            f"Received join request from {user_name} (ID: {user_id}) for chat {chat_id} "
+            f"via link '{invite_link_name}' ({invite_link_url})"
+        )
 
-    # API METHODS - Called from Flask
+        # --- Customize Your Approval/Decline Logic Here ---
+        # This is where you define how the bot decides to approve or decline.
+        # Current logic: Automatically approve if the link name starts with AUTO_APPROVE_LINK_NAME_PREFIX.
+        # Otherwise, decline.
 
-    async def create_invite_link_api(
+        if invite_link_name.startswith(""):
+            try:
+                await join_request.approve()
+                # Send a confirmation message to the chat
+                # await context.bot.send_message(
+                #     chat_id=chat_id,
+                #     text=f"✅ Join request from {user_name} via link '{invite_link_name}' has been automatically APPROVED.",
+                # )
+                logger.info(
+                    f"Approved join request for {user_name} via link '{invite_link_name}'"
+                )
+            except Exception as e:
+                logger.error(f"Failed to approve join request for {user_name}: {e}")
+                await context.bot.send_message(
+                    chat_id=chat_id,
+                    text=f"❌ Failed to approve join request from {user_name} via link '{invite_link_name}'. Error: {e}",
+                )
+        else:
+            try:
+                await join_request.decline()
+                # Send a confirmation message to the chat
+                await context.bot.send_message(
+                    chat_id=chat_id,
+                    text=f"🚫 Join request from {user_name} via link '{invite_link_name}' has been automatically DECLINED. "
+                    "This link does not meet auto-approval criteria.",
+                )
+                logger.info(
+                    f"Declined join request for {user_name} via link '{invite_link_name}'"
+                )
+            except Exception as e:
+                logger.error(f"Failed to decline join request for {user_name}: {e}")
+                await context.bot.send_message(
+                    chat_id=chat_id,
+                    text=f"❌ Failed to decline join request from {user_name} via link '{invite_link_name}'. Error: {e}",
+                )
+
+    # Helper method to run async function in bot's event loop
+    def _run_async_in_bot_loop(self, coro):
+        """Run an async coroutine in the bot's event loop"""
+        if self.event_loop and self.event_loop.is_running():
+            # If event loop is running, schedule the coroutine
+            future = asyncio.run_coroutine_threadsafe(coro, self.event_loop)
+            return future.result(timeout=60)  # 30 second timeout
+        else:
+            # If no event loop is running, create a new one
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            try:
+                return loop.run_until_complete(coro)
+            finally:
+                loop.close()
+
+    # API METHODS
+
+    async def create_invite_link_aysnc(
         self, chat_id: int, token: str, created_by_user_id: int = None
     ) -> Tuple[bool, str, Optional[str]]:
         """
@@ -273,12 +320,6 @@ class TelegramGroupBotService:
         """
         try:
             # Check if chat exists in our records
-            if chat_id not in self.groups:
-                return False, f"Bot is not in chat {chat_id}", None
-
-            # Check if token already exists
-            if token in self.invite_links:
-                return False, f"Token '{token}' already exists", None
 
             # Get chat info
             try:
@@ -292,23 +333,8 @@ class TelegramGroupBotService:
                 name=f"API Link - {token}",
                 member_limit=None,
                 expire_date=None,
+                creates_join_request=True,
             )
-
-            # Store the invite link with token
-            link_data = {
-                "chat_id": chat_id,
-                "chat_title": chat.title,
-                "token": token,
-                "invite_link": invite_link.invite_link,
-                "created_by": created_by_user_id,
-                "created_at": datetime.now().isoformat(),
-                "active": True,
-                "usage_count": 0,
-                "users": [],
-                "last_used": None,
-            }
-
-            self.invite_links[token] = link_data
 
             logger.info(
                 f"✅ API: Created invite link for chat {chat_id} with token {token}"
@@ -319,15 +345,14 @@ class TelegramGroupBotService:
             logger.error(f"❌ API: Error creating invite link: {e}")
             return False, f"Error creating invite link: {str(e)}", None
 
-    async def remove_user_api(self, chat_id: int, user_id: int) -> Tuple[bool, str]:
+    async def remove_user_api_async(
+        self, chat_id: int, user_id: int
+    ) -> Tuple[bool, str]:
         """
         API method to remove a user from a group
         Returns: (success: bool, message: str)
         """
         try:
-            # Check if chat exists in our records
-            if chat_id not in self.groups:
-                return False, f"Bot is not in chat {chat_id}"
 
             # Check if user exists in chat
             try:
@@ -350,177 +375,19 @@ class TelegramGroupBotService:
             logger.error(f"❌ API: Error removing user: {e}")
             return False, f"Error removing user: {str(e)}"
 
-    async def get_invite_link_info_api(
-        self, token: str
-    ) -> Tuple[bool, str, Optional[Dict]]:
-        """
-        API method to get invite link information
-        Returns: (success: bool, message: str, data: Optional[Dict])
-        """
-        try:
-            if token not in self.invite_links:
-                return False, f"Token '{token}' not found", None
-
-            link_data = self.invite_links[token].copy()
-            return True, "Invite link data retrieved", link_data
-
-        except Exception as e:
-            logger.error(f"❌ API: Error getting invite link info: {e}")
-            return False, f"Error getting invite link info: {str(e)}", None
-
-    async def list_group_invites_api(
-        self, chat_id: int
-    ) -> Tuple[bool, str, Optional[list]]:
-        """
-        API method to list all invite links for a group
-        Returns: (success: bool, message: str, invites: Optional[list])
-        """
-        try:
-            if chat_id not in self.groups:
-                return False, f"Bot is not in chat {chat_id}", None
-
-            chat_invites = [
-                link
-                for link in self.invite_links.values()
-                if link["chat_id"] == chat_id and link["active"]
-            ]
-
-            return True, f"Found {len(chat_invites)} active invites", chat_invites
-
-        except Exception as e:
-            logger.error(f"❌ API: Error listing invites: {e}")
-            return False, f"Error listing invites: {str(e)}", None
-
-    async def deactivate_invite_link_api(self, token: str) -> Tuple[bool, str]:
-        """
-        API method to deactivate an invite link
-        Returns: (success: bool, message: str)
-        """
-        try:
-            if token not in self.invite_links:
-                return False, f"Token '{token}' not found"
-
-            # Revoke the invite link
-            chat_id = self.invite_links[token]["chat_id"]
-            invite_link = self.invite_links[token]["invite_link"]
-
-            await self.bot.revoke_chat_invite_link(chat_id, invite_link)
-
-            # Mark as inactive
-            self.invite_links[token]["active"] = False
-            self.invite_links[token]["deactivated_at"] = datetime.now().isoformat()
-
-            logger.info(f"✅ API: Deactivated invite link with token {token}")
-            return True, f"Invite link '{token}' deactivated successfully"
-
-        except Exception as e:
-            logger.error(f"❌ API: Error deactivating invite link: {e}")
-            return False, f"Error deactivating invite link: {str(e)}"
-
-    async def get_group_info_api(
-        self, chat_id: int
-    ) -> Tuple[bool, str, Optional[Dict]]:
-        """
-        API method to get group information
-        Returns: (success: bool, message: str, data: Optional[Dict])
-        """
-        try:
-            if chat_id not in self.groups:
-                return False, f"Bot is not in chat {chat_id}", None
-
-            # Get current chat info
-            chat = await self.bot.get_chat(chat_id)
-            member_count = await self.bot.get_chat_member_count(chat_id)
-
-            # Get administrators
-            admins = await self.bot.get_chat_administrators(chat_id)
-            admin_count = len([admin for admin in admins if not admin.user.is_bot])
-
-            group_data = {
-                "id": chat.id,
-                "title": chat.title,
-                "type": chat.type,
-                "description": chat.description,
-                "member_count": member_count,
-                "admin_count": admin_count,
-                "active_invites": len(
-                    [
-                        l
-                        for l in self.invite_links.values()
-                        if l["chat_id"] == chat_id and l["active"]
-                    ]
-                ),
-                "bot_added_at": self.groups[chat_id].get("added_at"),
-            }
-
-            return True, "Group information retrieved", group_data
-
-        except Exception as e:
-            logger.error(f"❌ API: Error getting group info: {e}")
-            return False, f"Error getting group info: {str(e)}", None
-
-    # SYNCHRONOUS WRAPPERS FOR FLASK API
+    # SYNCHRONOUS WRAPPERS
 
     def create_invite_link(
         self, chat_id: int, token: str, created_by_user_id: int = None
     ) -> Tuple[bool, str, Optional[str]]:
-        """Synchronous wrapper for create_invite_link_api"""
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        try:
-            return loop.run_until_complete(
-                self.create_invite_link_api(chat_id, token, created_by_user_id)
-            )
-        finally:
-            loop.close()
-
-    def remove_user(self, chat_id: int, user_id: int) -> Tuple[bool, str]:
-        """Synchronous wrapper for remove_user_api"""
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        try:
-            return loop.run_until_complete(self.remove_user_api(chat_id, user_id))
-        finally:
-            loop.close()
-
-    def get_invite_link_info(self, token: str) -> Tuple[bool, str, Optional[Dict]]:
-        """Synchronous wrapper for get_invite_link_info_api"""
-        return (
-            True if token in self.invite_links else False,
-            "Found" if token in self.invite_links else "Not found",
-            self.invite_links.get(token),
+        """Synchronous wrapper for create_invite_link_aysnc"""
+        return self._run_async_in_bot_loop(
+            self.create_invite_link_aysnc(chat_id, token, created_by_user_id)
         )
 
-    def list_group_invites(self, chat_id: int) -> Tuple[bool, str, Optional[list]]:
-        """Synchronous wrapper for list_group_invites_api"""
-        if chat_id not in self.groups:
-            return False, f"Bot is not in chat {chat_id}", None
-
-        chat_invites = [
-            link
-            for link in self.invite_links.values()
-            if link["chat_id"] == chat_id and link["active"]
-        ]
-
-        return True, f"Found {len(chat_invites)} active invites", chat_invites
-
-    def deactivate_invite_link(self, token: str) -> Tuple[bool, str]:
-        """Synchronous wrapper for deactivate_invite_link_api"""
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        try:
-            return loop.run_until_complete(self.deactivate_invite_link_api(token))
-        finally:
-            loop.close()
-
-    def get_group_info(self, chat_id: int) -> Tuple[bool, str, Optional[Dict]]:
-        """Synchronous wrapper for get_group_info_api"""
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        try:
-            return loop.run_until_complete(self.get_group_info_api(chat_id))
-        finally:
-            loop.close()
+    def remove_user(self, chat_id: int, user_id: int) -> Tuple[bool, str]:
+        """Synchronous wrapper for remove_user_api_async"""
+        return self._run_async_in_bot_loop(self.remove_user_api_async(chat_id, user_id))
 
     # BOT LIFECYCLE MANAGEMENT
 
@@ -530,11 +397,19 @@ class TelegramGroupBotService:
         def run_bot():
             logger.info("🚀 Starting Telegram Bot Service...")
             self.running = True
-            import asyncio
 
+            # Create and set the event loop for the bot thread
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
-            self.application.run_polling(allowed_updates=Update.ALL_TYPES)
+            self.event_loop = loop
+
+            try:
+                self.application.run_polling(allowed_updates=Update.ALL_TYPES)
+            except Exception as e:
+                logger.error(f"Error running bot: {e}")
+            finally:
+                self.running = False
+                self.event_loop = None
 
         if not self.running:
             self.bot_thread = threading.Thread(target=run_bot, daemon=True)
@@ -548,6 +423,10 @@ class TelegramGroupBotService:
             if self.application.updater:
                 self.application.updater.stop()
             logger.info("🛑 Bot service stopped")
+
+        if self.event_loop.is_running():
+            self.event_loop.call_soon_threadsafe(self.event_loop.stop)
+            logger.info("🛑 Bot event loop stopped")
 
 
 import os
