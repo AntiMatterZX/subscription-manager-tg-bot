@@ -144,7 +144,7 @@ function Products() {
         <h1 className="text-2xl font-bold text-gray-800">Manage Products</h1>
         <button
           onClick={() => handleOpenModal()}
-          className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+          className="btn-primary"
         >
           Add Product
         </button>

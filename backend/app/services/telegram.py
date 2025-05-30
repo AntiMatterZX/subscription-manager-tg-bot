@@ -1,7 +1,7 @@
 import logging
 import asyncio
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, Optional, Tuple
 from telegram import Update, ChatMember, Bot
 from telegram.ext import (
@@ -252,12 +252,18 @@ class TelegramGroupBotService:
             f"via link '{invite_link_name}' ({invite_link_url})"
         )
 
-        # --- Customize Your Approval/Decline Logic Here ---
-        # This is where you define how the bot decides to approve or decline.
-        # Current logic: Automatically approve if the link name starts with AUTO_APPROVE_LINK_NAME_PREFIX.
-        # Otherwise, decline.
+        with self.app.app_context():
+            from app.services.subscription_service import SubscriptionService
 
-        if invite_link_name.startswith(""):
+            subsciption = SubscriptionService.get_subscription_by_invite_token(
+                invite_link_name
+            )
+
+        if not subsciption:
+            logger.error(f"Subscription not found for invite token: {invite_link_name}")
+            return
+
+        if subsciption.status == "pending_join":
             try:
                 await join_request.approve()
                 # Send a confirmation message to the chat
@@ -268,30 +274,56 @@ class TelegramGroupBotService:
                 logger.info(
                     f"Approved join request for {user_name} via link '{invite_link_name}'"
                 )
+
+                with self.app.app_context():
+                    SubscriptionService.update_subscription_with_telegram_user(
+                        invite_link_name, user_id, user_name
+                    )
+
+                    SubscriptionService.update_subscription_status(
+                        subsciption.id, "active"
+                    )
+
             except Exception as e:
                 logger.error(f"Failed to approve join request for {user_name}: {e}")
                 await context.bot.send_message(
                     chat_id=chat_id,
                     text=f"❌ Failed to approve join request from {user_name} via link '{invite_link_name}'. Error: {e}",
                 )
-        else:
-            try:
-                await join_request.decline()
-                # Send a confirmation message to the chat
-                await context.bot.send_message(
-                    chat_id=chat_id,
-                    text=f"🚫 Join request from {user_name} via link '{invite_link_name}' has been automatically DECLINED. "
-                    "This link does not meet auto-approval criteria.",
-                )
-                logger.info(
-                    f"Declined join request for {user_name} via link '{invite_link_name}'"
-                )
-            except Exception as e:
-                logger.error(f"Failed to decline join request for {user_name}: {e}")
-                await context.bot.send_message(
-                    chat_id=chat_id,
-                    text=f"❌ Failed to decline join request from {user_name} via link '{invite_link_name}'. Error: {e}",
-                )
+            finally:
+                return
+
+        if subsciption.status == "active":
+            logger.info(
+                f"Subscription already active for invite token: {invite_link_name}"
+            )
+
+        if (
+            subsciption.status == "expired"
+            or subsciption.subscription_expires_at > datetime.now()
+        ):
+            logger.info(f"Subscription expired for invite token: {invite_link_name}")
+
+        if subsciption.status == "cancelled":
+            logger.info(f"Subscription cancelled for invite token: {invite_link_name}")
+
+        try:
+            await join_request.decline()
+            # Send a confirmation message to the chat
+            # await context.bot.send_message(
+            #     chat_id=chat_id,
+            #     text=f"🚫 Join request from {user_name} via link '{invite_link_name}' has been automatically DECLINED. "
+            #     "This link does not meet auto-approval criteria.",
+            # )
+            logger.info(
+                f"Declined join request for {user_name} via link '{invite_link_name}'"
+            )
+        except Exception as e:
+            logger.error(f"Failed to decline join request for {user_name}: {e}")
+            await context.bot.send_message(
+                chat_id=chat_id,
+                text=f"❌ Failed to decline join request from {user_name} via link '{invite_link_name}'. Error: {e}",
+            )
 
     # Helper method to run async function in bot's event loop
     def _run_async_in_bot_loop(self, coro):
@@ -312,7 +344,7 @@ class TelegramGroupBotService:
     # API METHODS
 
     async def create_invite_link_aysnc(
-        self, chat_id: int, token: str, created_by_user_id: int = None
+        self, chat_id: int, token: str
     ) -> Tuple[bool, str, Optional[str]]:
         """
         API method to create an invite link with custom token
@@ -330,7 +362,7 @@ class TelegramGroupBotService:
             # Create invite link
             invite_link = await self.bot.create_chat_invite_link(
                 chat_id=chat_id,
-                name=f"API Link - {token}",
+                name=token,
                 member_limit=None,
                 expire_date=None,
                 creates_join_request=True,
@@ -378,11 +410,11 @@ class TelegramGroupBotService:
     # SYNCHRONOUS WRAPPERS
 
     def create_invite_link(
-        self, chat_id: int, token: str, created_by_user_id: int = None
+        self, chat_id: int, token: str
     ) -> Tuple[bool, str, Optional[str]]:
         """Synchronous wrapper for create_invite_link_aysnc"""
         return self._run_async_in_bot_loop(
-            self.create_invite_link_aysnc(chat_id, token, created_by_user_id)
+            self.create_invite_link_aysnc(chat_id, token)
         )
 
     def remove_user(self, chat_id: int, user_id: int) -> Tuple[bool, str]:

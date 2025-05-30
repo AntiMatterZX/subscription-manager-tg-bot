@@ -18,7 +18,11 @@ export const mapProductToGroup = (productId, data) => api.post(`/products/${prod
 export const unmapProduct = (productId) => api.delete(`/products/${productId}/unmap`)
 
 // Subscriptions
-export const getSubscriptions = () => api.get('/subscriptions')
+export const getSubscriptions = (params) => api.get('/subscriptions', { params })
 export const createSubscription = (data) => api.post('/subscribe', data)
+export const cancelSubscription = (id) => api.post(`/subscriptions/${id}/cancel`)
+
+// Users
+export const getUsers = () => api.get('/users')
 
 export default api
