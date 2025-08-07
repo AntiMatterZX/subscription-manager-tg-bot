@@ -4,7 +4,7 @@ from marshmallow import Schema, fields, validate, ValidationError
 class SubscriptionSchema(Schema):
     id = fields.Int(dump_only=True)
     user_id = fields.Int(dump_only=True)
-    product_id = fields.Int(required=True)
+    product_id = fields.Str(required=True)
     telegram_group_id = fields.Int(dump_only=True)
     invite_link_token = fields.Str(dump_only=True)
     invite_link_url = fields.Str(dump_only=True)
@@ -33,7 +33,7 @@ class SubscriptionSchema(Schema):
 
 class SubscriptionRequestSchema(Schema):
     email = fields.Email(required=True)
-    product_id = fields.Int()
+    product_id = fields.Str()
     product_name = fields.Str()
     expiration_datetime = fields.DateTime(required=False)
 

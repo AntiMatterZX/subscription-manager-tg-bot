@@ -21,7 +21,7 @@ def get_subscriptions():
     sort_order = request.args.get("sort_order", "desc")
     search = request.args.get("search")
     status = request.args.get("status")
-    product_id = request.args.get("product_id", type=int)
+    product_id = request.args.get("product_id")
     user_id = request.args.get("user_id", type=int)
     
     # Limit per_page to prevent performance issues

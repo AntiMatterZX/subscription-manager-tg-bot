@@ -96,7 +96,7 @@ class SubscriptionService:
     @staticmethod
     def create_subscription(
         email: str,
-        product_id: int,
+        product_id: str,
         expiration_datetime: datetime = None,
     ):
         # Set default expiration to 30 days from now if not provided
@@ -217,7 +217,7 @@ class SubscriptionService:
             raise e
 
     @staticmethod
-    def cancel_subscription_by_email_and_product_id(email, product_id):
+    def cancel_subscription_by_email_and_product_id(email: str, product_id: str):
         try:
             user = User.query.filter_by(email=email).first()
             if not user:

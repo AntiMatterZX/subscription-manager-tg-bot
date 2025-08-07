@@ -1,0 +1,5 @@
+POSTGRES_HOST=dpg-d2a8shmr433s73a7rnvg-a
+POSTGRES_USER=tgbot
+POSTGRES_PASSWORD=90HrP7qUPOW2L3JbWmt6O6c73kW4Kjha
+POSTGRES_DB=tgbot_sbat
+DATABASE_URL=postgresql://tgbot:90HrP7qUPOW2L3JbWmt6O6c73kW4Kjha@dpg-d2a8shmr433s73a7rnvg-a.oregon-postgres.render.com/tgbot_sbat

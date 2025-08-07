@@ -10,7 +10,7 @@ def get_products():
     products = ProductService.get_all_products()
     return jsonify(products_schema.dump(products)), 200
 
-@product_bp.route('/products/<int:product_id>', methods=['GET'])
+@product_bp.route('/products/<string:product_id>', methods=['GET'])
 def get_product(product_id):
     product = ProductService.get_product_by_id(product_id)
     if not product:
@@ -28,7 +28,7 @@ def create_product():
     except Exception as e:
         return jsonify({'message': str(e)}), 500
 
-@product_bp.route('/products/<int:product_id>', methods=['PUT'])
+@product_bp.route('/products/<string:product_id>', methods=['PUT'])
 def update_product(product_id):
     try:
         product_data = product_schema.load(request.json, partial=True)
@@ -41,7 +41,7 @@ def update_product(product_id):
     except Exception as e:
         return jsonify({'message': str(e)}), 500
 
-@product_bp.route('/products/<int:product_id>', methods=['DELETE'])
+@product_bp.route('/products/<string:product_id>', methods=['DELETE'])
 def delete_product(product_id):
     try:
         success = ProductService.delete_product(product_id)

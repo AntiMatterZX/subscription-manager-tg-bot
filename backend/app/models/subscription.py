@@ -7,7 +7,7 @@ class Subscription(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
-    product_id = db.Column(db.Integer, db.ForeignKey("products.id"), nullable=False)
+    product_id = db.Column(db.String(24), db.ForeignKey("products.id"), nullable=False)
 
     telegram_group_id = db.Column(
         db.Integer, db.ForeignKey("telegram_groups.id"), nullable=False

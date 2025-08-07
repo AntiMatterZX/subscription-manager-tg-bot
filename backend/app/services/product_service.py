@@ -15,6 +15,7 @@ class ProductService:
     def create_product(product_data):
         try:
             product = Product(
+                id=product_data['id'],
                 name=product_data['name'],
                 description=product_data.get('description')
             )

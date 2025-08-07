@@ -11,6 +11,7 @@ function Products() {
   const [currentProduct, setCurrentProduct] = useState(null)
   const [selectedGroup, setSelectedGroup] = useState('')
   const [formData, setFormData] = useState({
+    id: '',
     name: '',
     description: ''
   })
@@ -38,12 +39,14 @@ function Products() {
     if (product) {
       setCurrentProduct(product)
       setFormData({
+        id: product.id,
         name: product.name,
         description: product.description || ''
       })
     } else {
       setCurrentProduct(null)
       setFormData({
+        id: '',
         name: '',
         description: ''
       })
@@ -161,6 +164,9 @@ function Products() {
           <thead className="bg-gray-50">
             <tr>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                ID
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Name
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -177,13 +183,16 @@ function Products() {
           <tbody className="bg-white divide-y divide-gray-200">
             {products.length === 0 ? (
               <tr>
-                <td colSpan="4" className="px-6 py-4 text-center text-gray-500">
+                <td colSpan="5" className="px-6 py-4 text-center text-gray-500">
                   No products available.
                 </td>
               </tr>
             ) : (
               products.map(product => (
                 <tr key={product.id}>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm font-medium text-gray-900">{product.id}</div>
+                  </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm font-medium text-gray-900">{product.name}</div>
                   </td>
@@ -247,6 +256,24 @@ function Products() {
             </h2>
             
             <form onSubmit={handleSubmit}>
+              {!currentProduct && (
+                <div className="mb-4">
+                  <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="id">
+                    Product ID
+                  </label>
+                  <input
+                    className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                    id="id"
+                    name="id"
+                    type="text"
+                    placeholder="Enter Product ID"
+                    value={formData.id}
+                    onChange={handleInputChange}
+                    required
+                  />
+                </div>
+              )}
+              
               <div className="mb-4">
                 <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="name">
                   Name
@@ -277,8 +304,6 @@ function Products() {
                   rows="3"
                 />
               </div>
-              
-
               
               <div className="flex items-center justify-between">
                 <button
