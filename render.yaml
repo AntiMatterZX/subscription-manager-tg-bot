@@ -1,0 +1,42 @@
+services:
+  - type: web
+    name: tg-bot-backend
+    env: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    envVars:
+      - key: FLASK_ENV
+        value: production
+      - key: FLASK_APP
+        value: run.py
+      - key: SECRET_KEY
+        generateValue: true
+      - key: POSTGRES_HOST
+        fromDatabase:
+          name: tg-bot-db
+          property: host
+      - key: POSTGRES_USER
+        fromDatabase:
+          name: tg-bot-db
+          property: user
+      - key: POSTGRES_PASSWORD
+        fromDatabase:
+          name: tg-bot-db
+          property: password
+      - key: POSTGRES_DB
+        fromDatabase:
+          name: tg-bot-db
+          property: database
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+
+  - type: web
+    name: tg-bot-frontend
+    env: docker
+    dockerfilePath: ./frontend/Dockerfile
+    dockerContext: ./frontend
+
+databases:
+  - name: tg-bot-db
+    databaseName: tg_manager
+    user: postgres
