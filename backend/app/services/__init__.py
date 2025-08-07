@@ -1,0 +1,3 @@
+from app.services.product_service import ProductService
+from app.services.telegram_group_service import TelegramGroupService
+from app.services.subscription_service import SubscriptionService
