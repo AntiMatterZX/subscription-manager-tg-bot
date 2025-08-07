@@ -8,6 +8,7 @@ This document provides detailed information about the API endpoints available in
 2. [Group API](#group-api)
 3. [Subscription API](#subscription-api)
 4. [Telegram API](#telegram-api)
+5. [User API](#user-api)
 
 ---
 
@@ -30,10 +31,9 @@ Retrieves a list of all products.
 {
   "data": [
     {
-      "id": 1,
+      "id": "pro-basic",
       "name": "Product Name",
       "description": "Product Description",
-      "price": 99.99,
       "created_at": "2023-01-01T12:00:00Z",
       "updated_at": "2023-01-01T12:00:00Z"
     }
@@ -48,7 +48,7 @@ Retrieves a specific product by its ID.
 - **URL**: `/products/<product_id>`
 - **Method**: `GET`
 - **URL Parameters**:
-  - `product_id`: The ID of the product to retrieve
+  - `product_id`: String product ID
 - **Authentication**: Not required
 - **Response Codes**:
   - `200 OK`: Successfully retrieved product
@@ -57,10 +57,9 @@ Retrieves a specific product by its ID.
 **Response Format**:
 ```json
 {
-  "id": 1,
+  "id": "pro-basic",
   "name": "Product Name",
   "description": "Product Description",
-  "price": 99.99,
   "created_at": "2023-01-01T12:00:00Z",
   "updated_at": "2023-01-01T12:00:00Z"
 }
@@ -76,9 +75,9 @@ Creates a new product.
 - **Request Body**:
 ```json
 {
+  "id": "pro-basic",
   "name": "New Product",
-  "description": "Product Description",
-  "price": 99.99
+  "description": "Product Description"
 }
 ```
 - **Response Codes**:
@@ -89,10 +88,9 @@ Creates a new product.
 **Response Format**:
 ```json
 {
-  "id": 1,
+  "id": "pro-basic",
   "name": "New Product",
   "description": "Product Description",
-  "price": 99.99,
   "created_at": "2023-01-01T12:00:00Z",
   "updated_at": "2023-01-01T12:00:00Z"
 }
@@ -105,14 +103,13 @@ Updates an existing product.
 - **URL**: `/products/<product_id>`
 - **Method**: `PUT`
 - **URL Parameters**:
-  - `product_id`: The ID of the product to update
+  - `product_id`: String product ID
 - **Authentication**: Not required
 - **Request Body**:
 ```json
 {
   "name": "Updated Product Name",
-  "description": "Updated Description",
-  "price": 149.99
+  "description": "Updated Description"
 }
 ```
 - **Response Codes**:
@@ -124,10 +121,9 @@ Updates an existing product.
 **Response Format**:
 ```json
 {
-  "id": 1,
+  "id": "pro-basic",
   "name": "Updated Product Name",
   "description": "Updated Description",
-  "price": 149.99,
   "created_at": "2023-01-01T12:00:00Z",
   "updated_at": "2023-01-02T12:00:00Z"
 }
@@ -140,7 +136,7 @@ Deletes a product.
 - **URL**: `/products/<product_id>`
 - **Method**: `DELETE`
 - **URL Parameters**:
-  - `product_id`: The ID of the product to delete
+  - `product_id`: String product ID
 - **Authentication**: Not required
 - **Response Codes**:
   - `200 OK`: Successfully deleted product
@@ -177,7 +173,7 @@ Retrieves a list of all Telegram groups.
     "id": 1,
     "telegram_group_id": "-1001234567890",
     "telegram_group_name": "Group Name",
-    "product_id": 1,
+    "product_id": "pro-basic",
     "created_at": "2023-01-01T12:00:00Z",
     "updated_at": "2023-01-01T12:00:00Z"
   }
@@ -215,7 +211,7 @@ Maps a product to a Telegram group.
 - **URL**: `/products/<product_id>/map`
 - **Method**: `POST`
 - **URL Parameters**:
-  - `product_id`: The ID of the product to map
+  - `product_id`: String product ID
 - **Authentication**: Not required
 - **Request Body**:
 ```json
@@ -235,7 +231,7 @@ Maps a product to a Telegram group.
   "id": 1,
   "telegram_group_id": "-1001234567890",
   "telegram_group_name": "Group Name",
-  "product_id": 1,
+  "product_id": "pro-basic",
   "created_at": "2023-01-01T12:00:00Z",
   "updated_at": "2023-01-01T12:00:00Z"
 }
@@ -248,7 +244,7 @@ Removes the mapping between a product and a Telegram group.
 - **URL**: `/products/<product_id>/unmap`
 - **Method**: `DELETE`
 - **URL Parameters**:
-  - `product_id`: The ID of the product to unmap
+  - `product_id`: String product ID
 - **Authentication**: Not required
 - **Response Codes**:
   - `200 OK`: Successfully unmapped product
@@ -281,8 +277,8 @@ Retrieves a paginated list of all subscriptions with filtering options.
   - `sort_order`: Sort direction, "asc" or "desc" (default: "desc")
   - `search`: Search term to filter results
   - `status`: Filter by subscription status
-  - `product_id`: Filter by product ID
-  - `user_id`: Filter by user ID
+  - `product_id`: Filter by string product ID
+  - `user_id`: Filter by user ID (integer)
 - **Authentication**: Not required
 - **Response Codes**:
   - `200 OK`: Successfully retrieved subscriptions
@@ -294,7 +290,7 @@ Retrieves a paginated list of all subscriptions with filtering options.
     {
       "id": 1,
       "user_id": 1,
-      "product_id": 1,
+      "product_id": "pro-basic",
       "status": "active",
       "subscription_expires_at": "2024-01-01T12:00:00Z",
       "invite_link_url": "https://t.me/joinchat/abcdefg",
@@ -321,7 +317,7 @@ Creates a new subscription for a user to a product.
 ```json
 {
   "email": "user@example.com",
-  "product_id": 1,
+  "product_id": "pro-basic",
   "expiration_datetime": "2024-01-01T12:00:00Z"
 }
 ```
@@ -359,7 +355,7 @@ Cancels a subscription based on user email and product ID.
 ```json
 {
   "email": "user@example.com",
-  "product_id": 1
+  "product_id": "pro-basic"
 }
 ```
 - **Response Codes**:
@@ -419,7 +415,7 @@ Cancels a subscription by its ID.
 
 ## Telegram API
 
-The Telegram API handles webhook interactions with the Telegram Bot API.
+The Telegram API handles webhook interactions with the Telegram Bot API, along with admin operations.
 
 ### Telegram Webhook
 
@@ -467,48 +463,159 @@ Tests the Telegram webhook configuration.
 }
 ```
 
+### Kick User (Admin)
+
+Kicks a user from a Telegram group by product mapping or direct Telegram group ID.
+
+- **URL**: `/telegram/kick-user`
+- **Method**: `POST`
+- **Authentication**: Not required
+- **Request Body** (one of):
+```json
+{
+  "product_id": "pro-basic",
+  "telegram_user_id": 123456789
+}
+```
+OR
+```json
+{
+  "telegram_group_id": "-1001234567890",
+  "telegram_user_id": 123456789
+}
+```
+- **Response Codes**:
+  - `200 OK`: User removed successfully
+  - `400 Bad Request`: Validation error or user not in chat
+  - `404 Not Found`: Product not found or not mapped
+  - `500 Internal Server Error`: Server error
+  
+**Response Format**:
+```json
+{
+  "success": true,
+  "message": "User 123456789 removed successfully"
+}
+```
+
+### Regenerate Invite Link (Admin)
+
+Creates a new invite link for a Telegram group by product mapping or direct Telegram group ID.
+
+- **URL**: `/telegram/invite/regenerate`
+- **Method**: `POST`
+- **Authentication**: Not required
+- **Request Body** (one of):
+```json
+{
+  "product_id": "pro-basic",
+  "token": "optional-custom-token"
+}
+```
+OR
+```json
+{
+  "telegram_group_id": "-1001234567890",
+  "token": "optional-custom-token"
+}
+```
+- **Response Codes**:
+  - `200 OK`: Invite link created successfully
+  - `400 Bad Request`: Validation error
+  - `404 Not Found`: Product not found or not mapped
+  - `500 Internal Server Error`: Server error
+  
+**Response Format**:
+```json
+{
+  "success": true,
+  "message": "Invite link created successfully",
+  "invite_link": "https://t.me/+abcdefg",
+  "token": "generated-or-provided-token"
+}
+```
+
 ---
 
-## Error Responses
+## User API
 
-All API endpoints may return the following error responses:
+### List Users Joined via Invite
 
-### Validation Error
+Lists users who have joined via an invite link (i.e., users with recorded Telegram IDs), with their related product and group context.
 
+- **URL**: `/users/joined`
+- **Method**: `GET`
+- **Query Parameters** (optional):
+  - `product_id`: Filter by string product ID
+  - `telegram_group_id`: Filter by Telegram group ID (string)
+  - `status`: Comma-separated subscription statuses (pending_join, active, expired, cancelled)
+- **Authentication**: Not required
+- **Response Codes**:
+  - `200 OK`: Successfully retrieved users
+  
+**Response Format** (array):
 ```json
-{
-  "message": "Validation error",
-  "errors": {
-    "field_name": ["Error message"]
+[
+  {
+    "subscription_id": 101,
+    "status": "active",
+    "subscription_expires_at": "2024-01-01T12:00:00Z",
+    "invite_link_url": "https://t.me/+abcdefg",
+    "invite_link_expires_at": "2023-02-01T12:00:00Z",
+    "user": {
+      "id": 5,
+      "email": "user@example.com",
+      "telegram_user_id": "123456789",
+      "telegram_username": "theuser"
+    },
+    "product": {
+      "id": "pro-basic",
+      "name": "Basic",
+      "description": "..."
+    },
+    "telegram_group": {
+      "id": 7,
+      "telegram_group_id": "-1001234567890",
+      "telegram_group_name": "Group Name",
+      "is_active": true
+    }
   }
-}
+]
 ```
 
-### General Error
+### List Members of a Product
 
-```json
-{
-  "message": "Error message"
-}
-```
+- **URL**: `/products/<product_id>/members`
+- **Method**: `GET`
+- **URL Parameters**:
+  - `product_id`: String product ID
+- **Authentication**: Not required
 
-## Authentication
+### List Members of a Telegram Group
 
-No authentication is required for any endpoints in this API, except for the Telegram webhook endpoint which uses token-based verification.
+- **URL**: `/groups/<telegram_group_id>/members`
+- **Method**: `GET`
+- **URL Parameters**:
+  - `telegram_group_id`: Telegram group ID (string)
+- **Authentication**: Not required
 
-## Rate Limiting
+---
 
-API requests may be subject to rate limiting. When rate limits are exceeded, the API will return a `429 Too Many Requests` response.
+## How Kicking Works and Storage
+
+- When a user joins via invite, the bot extracts the invite token and updates the corresponding subscription with `telegram_user_id` and `telegram_username`.
+- Data is stored in PostgreSQL via SQLAlchemy models (`users`, `subscriptions`, `telegram_groups`, `products`).
+- Kicking uses `tg_bot.remove_user(chat_id, user_id)` where `chat_id` is the `telegram_group_id` and `user_id` is the `telegram_user_id` from the subscription/user record.
+- No MongoDB is required.
 
 ---
 
 ## Schemas
 
 ### Product Schema
-- `id`: Integer - Unique identifier
+- `id`: String - Unique identifier (1-24 chars, provided by client)
 - `name`: String - Product name
 - `description`: String - Product description
-- `price`: Float - Product price
 - `created_at`: DateTime - Creation timestamp
 - `updated_at`: DateTime - Last update timestamp
 
@@ -516,15 +623,15 @@ API requests may be subject to rate limiting. When rate limits are exceeded, the
 - `id`: Integer - Unique identifier
 - `telegram_group_id`: String - Telegram's internal group ID
 - `telegram_group_name`: String - Group name
-- `product_id`: Integer - Associated product ID (nullable)
+- `product_id`: String - Associated product ID (nullable)
 - `created_at`: DateTime - Creation timestamp
 - `updated_at`: DateTime - Last update timestamp
 
 ### Subscription Schema
 - `id`: Integer - Unique identifier
 - `user_id`: Integer - User ID
-- `product_id`: Integer - Product ID
-- `status`: String - Subscription status (active, cancelled, expired)
+- `product_id`: String - Product ID
+- `status`: String - Subscription status (pending_join, active, expired, cancelled)
 - `subscription_expires_at`: DateTime - Expiration timestamp
 - `invite_link_url`: String - Telegram group invite link
 - `invite_link_expires_at`: DateTime - Invite link expiration timestamp
@@ -534,3 +641,5 @@ API requests may be subject to rate limiting. When rate limits are exceeded, the
 ### User Schema
 - `id`: Integer - Unique identifier
 - `email`: String - User email address
+- `telegram_user_id`: String - User Telegram ID (when known)
+- `telegram_username`: String - Telegram username (when known)

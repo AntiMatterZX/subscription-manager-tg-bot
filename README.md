@@ -32,13 +32,6 @@ tg-manager/
 │   ├── Dockerfile          # Backend Dockerfile
 │   └── requirements.txt    # Python dependencies
 ├── frontend/               # React application
-│   ├── src/
-│   │   ├── components/     # Reusable UI components
-│   │   ├── pages/          # Page components
-│   │   ├── services/       # API integration
-│   │   └── hooks/          # Custom React hooks
-│   ├── Dockerfile          # Frontend Dockerfile
-│   └── package.json        # Node.js dependencies
 ├── docker-compose.yml      # Docker Compose configuration
 └── README.md               # Project documentation
 ```
@@ -82,9 +75,12 @@ TELEGRAM_BOT_TOKEN=your_telegram_bot_token
 
 - `GET /api/products` - List all products
 - `GET /api/products/{product_id}` - Get a specific product
-- `POST /api/products` - Create a new product
-- `PUT /api/products/{product_id}` - Update a product
+- `POST /api/products` - Create a new product (ID is required and must be a string you provide)
+- `PUT /api/products/{product_id}` - Update a product (do not include ID in the body)
 - `DELETE /api/products/{product_id}` - Delete a product
+
+Notes:
+- Product IDs are strings (1-24 chars) provided by the client.
 
 ### Groups
 
@@ -96,10 +92,40 @@ TELEGRAM_BOT_TOKEN=your_telegram_bot_token
 - `POST /api/products/{product_id}/map` - Map a product to a Telegram group
 - `DELETE /api/products/{product_id}/unmap` - Unmap a product from a Telegram group
 
+Notes:
+- `{product_id}` in mapping routes is a string matching the product's ID.
+
 ### Subscriptions
 
 - `POST /api/subscribe` - Create a new subscription
 - `GET /api/subscriptions` - List all subscriptions (admin only)
+
+### Telegram
+
+- `POST /api/telegram/kick-user` — Kick a user from a Telegram group
+  - Body (one of):
+    - `{ "product_id": "string", "telegram_user_id": 123456789 }`
+    - `{ "telegram_group_id": "-1001234567890", "telegram_user_id": 123456789 }`
+  - Response: `{ success: boolean, message: string }`
+
+- `POST /api/telegram/invite/regenerate` — Regenerate an invite link for a Telegram group
+  - Body (one of):
+    - `{ "product_id": "string" }`
+    - `{ "telegram_group_id": "-1001234567890" }`
+  - Optional: `{ "token": "custom-token" }` (if omitted, server generates one)
+  - Response: `{ success: boolean, message: string, invite_link: string|null, token: string }`
+
+### Users
+
+- `GET /api/users/joined` — List users who joined via invite link with context
+  - Query params (optional): `product_id`, `telegram_group_id`, `status`
+  - Returns user, product, group, and subscription details required for admin actions
+
+- `GET /api/products/{product_id}/members` — Convenience list of members for a product (string product_id)
+- `GET /api/groups/{telegram_group_id}/members` — Convenience list of members for a Telegram group
+
+Notes:
+- The system uses PostgreSQL only; no MongoDB is required. The bot records `telegram_user_id` on the `users` table via subscription updates when a user joins via a tracked invite.
 
 ## License
 

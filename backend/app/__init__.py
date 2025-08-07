@@ -38,11 +38,13 @@ def create_app():
     from app.routes.group_routes import group_bp
     from app.routes.subscription_routes import subscription_bp
     from app.routes.telegram_routes import telegram_bp
+    from app.routes.user_routes import user_bp
 
     app.register_blueprint(product_bp, url_prefix="/api")
     app.register_blueprint(group_bp, url_prefix="/api")
     app.register_blueprint(subscription_bp, url_prefix="/api")
     app.register_blueprint(telegram_bp, url_prefix="/api")
+    app.register_blueprint(user_bp, url_prefix="/api")
 
     # Initialize Telegram bot
     # with app.app_context():
