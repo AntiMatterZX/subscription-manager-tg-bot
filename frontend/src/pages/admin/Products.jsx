@@ -82,13 +82,15 @@ function Products() {
     e.preventDefault()
     
     try {
-      const productData = {
-        ...formData
-      }
-      
       if (currentProduct) {
-        await updateProduct(currentProduct.id, productData)
+        // For updates, exclude the id field since it's already in the URL
+        const { id, ...updateData } = formData
+        await updateProduct(currentProduct.id, updateData)
       } else {
+        // For creates, include all form data including id
+        const productData = {
+          ...formData
+        }
         await createProduct(productData)
       }
       
