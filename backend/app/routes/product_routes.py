@@ -1,7 +1,7 @@
 from flask import Blueprint, request, jsonify
 from marshmallow import ValidationError
 from app.services import ProductService
-from app.schemas import product_schema, products_schema
+from app.schemas import product_schema, products_schema, product_create_schema, product_update_schema
 
 product_bp = Blueprint('product', __name__)
 
@@ -20,7 +20,7 @@ def get_product(product_id):
 @product_bp.route('/products', methods=['POST'])
 def create_product():
     try:
-        product_data = product_schema.load(request.json)
+        product_data = product_create_schema.load(request.json)
         product = ProductService.create_product(product_data)
         return jsonify(product_schema.dump(product)), 201
     except ValidationError as e:
@@ -31,7 +31,7 @@ def create_product():
 @product_bp.route('/products/<string:product_id>', methods=['PUT'])
 def update_product(product_id):
     try:
-        product_data = product_schema.load(request.json, partial=True)
+        product_data = product_update_schema.load(request.json)
         product = ProductService.update_product(product_id, product_data)
         if not product:
             return jsonify({'message': 'Product not found'}), 404
