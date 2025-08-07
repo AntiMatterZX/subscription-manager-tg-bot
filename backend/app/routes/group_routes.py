@@ -15,7 +15,7 @@ def get_unmapped_groups():
     groups = TelegramGroupService.get_unmapped_groups()
     return jsonify(telegram_groups_schema.dump(groups)), 200
 
-@group_bp.route('/products/<int:product_id>/map', methods=['POST'])
+@group_bp.route('/products/<string:product_id>/map', methods=['POST'])
 def map_product_to_group(product_id):
     try:
         data = request.json
@@ -35,7 +35,7 @@ def map_product_to_group(product_id):
     except Exception as e:
         return jsonify({'message': str(e)}), 500
 
-@group_bp.route('/products/<int:product_id>/unmap', methods=['DELETE'])
+@group_bp.route('/products/<string:product_id>/unmap', methods=['DELETE'])
 def unmap_product(product_id):
     try:
         success = TelegramGroupService.unmap_product(product_id)
