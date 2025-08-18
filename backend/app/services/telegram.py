@@ -363,9 +363,9 @@ class TelegramGroupBotService:
             invite_link = await self.bot.create_chat_invite_link(
                 chat_id=chat_id,
                 name=token,
-                member_limit=None,
+                member_limit=1,
                 expire_date=None,
-                creates_join_request=True,
+                creates_join_request=False,
             )
 
             logger.info(
