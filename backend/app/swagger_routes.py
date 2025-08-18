@@ -174,7 +174,7 @@ class ProductMembers(Resource):
             }
         
         q = (
-            Subscription.query.join(User).join(Product).join(TelegramGroup)
+            Subscription.query.join(User).join(Product).outerjoin(TelegramGroup)
             .filter(Subscription.product_id == product_id)
             .filter(User.telegram_user_id.isnot(None))
         )
@@ -236,7 +236,7 @@ class GroupMembers(Resource):
             }
         
         q = (
-            Subscription.query.join(User).join(Product).join(TelegramGroup)
+            Subscription.query.join(User).join(Product).outerjoin(TelegramGroup)
             .filter(TelegramGroup.telegram_group_id == str(telegram_group_id))
             .filter(User.telegram_user_id.isnot(None))
         )
@@ -438,7 +438,7 @@ class JoinedUsers(Resource):
         telegram_group_id = request.args.get('telegram_group_id')
         status_param = request.args.get('status')
 
-        q = Subscription.query.join(User).join(Product).join(TelegramGroup)
+        q = Subscription.query.join(User).join(Product).outerjoin(TelegramGroup)
         q = q.filter(User.telegram_user_id.isnot(None))
 
         if product_id:

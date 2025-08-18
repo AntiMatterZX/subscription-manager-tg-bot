@@ -45,7 +45,7 @@ def list_joined_users():
     telegram_group_id = request.args.get('telegram_group_id')
     status_param = request.args.get('status')
 
-    q = Subscription.query.join(User).join(Product).join(TelegramGroup)
+    q = Subscription.query.join(User).join(Product).outerjoin(TelegramGroup)
 
     # Only subscriptions where we have a telegram_user_id recorded
     q = q.filter(User.telegram_user_id.isnot(None))
@@ -69,7 +69,7 @@ def list_joined_users():
 def list_product_members(product_id: str):
     """Convenience endpoint: list members for a given product (by string product_id)."""
     q = (
-        Subscription.query.join(User).join(Product).join(TelegramGroup)
+        Subscription.query.join(User).join(Product).outerjoin(TelegramGroup)
         .filter(Subscription.product_id == product_id)
         .filter(User.telegram_user_id.isnot(None))
     )
@@ -81,7 +81,7 @@ def list_product_members(product_id: str):
 def list_group_members(telegram_group_id: str):
     """Convenience endpoint: list members for a given Telegram group id."""
     q = (
-        Subscription.query.join(User).join(Product).join(TelegramGroup)
+        Subscription.query.join(User).join(Product).outerjoin(TelegramGroup)
         .filter(TelegramGroup.telegram_group_id == str(telegram_group_id))
         .filter(User.telegram_user_id.isnot(None))
     )
