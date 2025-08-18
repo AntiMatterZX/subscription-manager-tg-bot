@@ -68,8 +68,17 @@ TELEGRAM_BOT_TOKEN=your_telegram_bot_token
 2. Create the `.env` file with the required environment variables
 3. Run `docker-compose up --build`
 4. Access the application at http://localhost:3000
+5. Access the API documentation at http://localhost:5000/api-docs/
 
 ## API Documentation
+
+The API documentation is available via Swagger UI at `/api-docs/` when the application is running.
+
+**Swagger UI**: Access interactive API documentation at http://localhost:5000/api-docs/
+
+The API provides two sets of endpoints:
+- **Main API** (`/api/*`): Swagger-documented endpoints with full OpenAPI specification
+- **Legacy API** (`/api/v1/*`): Original endpoints for backward compatibility
 
 ### Products
 

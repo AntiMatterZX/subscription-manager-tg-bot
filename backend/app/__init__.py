@@ -33,49 +33,40 @@ def create_app():
     migrate.init_app(app, db)
     CORS(app)
 
-    # Register blueprints
+    # Initialize Swagger API
+    from app.swagger_config import api
+    api.init_app(app)
+
+    # Register Swagger namespaces
+    from app.swagger_routes import products_ns, groups_ns, subscriptions_ns, users_ns, telegram_ns, subscribe_ns
+    api.add_namespace(products_ns)
+    api.add_namespace(groups_ns)
+    api.add_namespace(subscriptions_ns)
+    api.add_namespace(users_ns)
+    api.add_namespace(telegram_ns)
+    api.add_namespace(subscribe_ns)
+
+    # Add redirect route for /api-docs
+    @app.route('/api-docs')
+    def api_docs():
+        from flask import redirect
+        return redirect('/api-docs/')
+
+    # Register original blueprints (for backward compatibility)
     from app.routes.product_routes import product_bp
     from app.routes.group_routes import group_bp
     from app.routes.subscription_routes import subscription_bp
     from app.routes.telegram_routes import telegram_bp
     from app.routes.user_routes import user_bp
 
-    app.register_blueprint(product_bp, url_prefix="/api")
-    app.register_blueprint(group_bp, url_prefix="/api")
-    app.register_blueprint(subscription_bp, url_prefix="/api")
-    app.register_blueprint(telegram_bp, url_prefix="/api")
-    app.register_blueprint(user_bp, url_prefix="/api")
+    app.register_blueprint(product_bp, url_prefix="/api/v1")
+    app.register_blueprint(group_bp, url_prefix="/api/v1")
+    app.register_blueprint(subscription_bp, url_prefix="/api/v1")
+    app.register_blueprint(telegram_bp, url_prefix="/api/v1")
+    app.register_blueprint(user_bp, url_prefix="/api/v1")
 
     # Initialize Telegram bot
-    # with app.app_context():
-    #     from app.bot import initialize_bot, USE_WEBHOOKS
-
-    #     initialize_bot()
-
-    #     # Set up webhook if using webhook mode
-    #     if USE_WEBHOOKS:
-    #         from app.bot.telegram_client import get_bot
-    #         import os
-
-    #         webhook_url = os.environ.get("WEBHOOK_URL")
-    #         if webhook_url and get_bot():
-    #             try:
-    #                 import asyncio
-
-    #                 loop = asyncio.new_event_loop()
-    #                 asyncio.set_event_loop(loop)
-
-    #                 try:
-    #                     token = os.environ.get("TELEGRAM_BOT_TOKEN")
-    #                     webhook_path = f"{webhook_url}/api/telegram/webhook/{token}"
-    #                     loop.run_until_complete(get_bot().set_webhook(url=webhook_path))
-    #                     app.logger.info(f"Webhook set to {webhook_path}")
-    #                 finally:
-    #                     loop.close()
-    #             except Exception as e:
-    #                 app.logger.error(f"Failed to set webhook: {e}")
     from app.services.telegram import tg_bot
-
     tg_bot.init_app(app)
     tg_bot.start_bot()
 
