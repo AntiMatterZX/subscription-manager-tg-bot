@@ -122,6 +122,22 @@ regenerate_invite_model = api.model('RegenerateInvite', {
     'token': fields.String(description='Custom token (optional)')
 })
 
+regenerate_user_invite_model = api.model('RegenerateUserInvite', {
+    'subscription_id': fields.Integer(description='Subscription ID'),
+    'product_id': fields.String(description='Product ID (alternative to subscription_id)'),
+    'user_email': fields.String(description='User email (required with product_id)'),
+    'token': fields.String(description='Custom token (optional)')
+})
+
+invite_link_response_model = api.model('InviteLinkResponse', {
+    'success': fields.Boolean(description='Operation success'),
+    'message': fields.String(description='Response message'),
+    'invite_link': fields.String(description='Generated invite link'),
+    'token': fields.String(description='Token used'),
+    'subscription_id': fields.Integer(description='Subscription ID'),
+    'expires_at': fields.DateTime(description='Link expiration time')
+})
+
 telegram_response_model = api.model('TelegramResponse', {
     'success': fields.Boolean(description='Operation success'),
     'message': fields.String(description='Response message'),

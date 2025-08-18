@@ -244,6 +244,64 @@ class SubscriptionService:
             db.session.rollback()
             raise e
 
+    @staticmethod
+    def regenerate_invite_link(subscription_id, custom_token=None):
+        """Regenerate invite link for a subscription"""
+        try:
+            subscription = Subscription.query.get(subscription_id)
+            if not subscription:
+                return None, "Subscription not found"
+
+            if not subscription.telegram_group:
+                return None, "Subscription not linked to a Telegram group"
+
+            # Generate new token if not provided
+            if not custom_token:
+                import uuid
+                custom_token = str(uuid.uuid4())[:32]
+
+            # Create new invite link
+            from app.services.telegram import tg_bot
+            success, message, invite_link = tg_bot.create_invite_link(
+                int(subscription.telegram_group.telegram_group_id), custom_token
+            )
+
+            if not success or not invite_link:
+                return None, f"Failed to generate invite link: {message}"
+
+            # Update subscription with new invite link
+            subscription.invite_link_url = invite_link
+            subscription.invite_link_token = custom_token
+            # Keep the same expiration time
+            
+            db.session.commit()
+            return subscription, None
+        except SQLAlchemyError as e:
+            db.session.rollback()
+            raise e
+
+    @staticmethod
+    def regenerate_invite_link_by_product(product_id, user_email, custom_token=None):
+        """Regenerate invite link for a user's subscription to a product"""
+        try:
+            user = User.query.filter_by(email=user_email).first()
+            if not user:
+                return None, "User not found"
+
+            subscription = Subscription.query.filter(
+                Subscription.user_id == user.id,
+                Subscription.product_id == product_id,
+                Subscription.status.in_(["active", "pending_join"])
+            ).first()
+
+            if not subscription:
+                return None, "Active subscription not found for user and product"
+
+            return SubscriptionService.regenerate_invite_link(subscription.id, custom_token)
+        except Exception as e:
+            db.session.rollback()
+            raise e
+
     def update_subscription_status(subscription_id, new_status):
 
         if new_status not in ["pending_join", "active", "expired", "cancelled"]:

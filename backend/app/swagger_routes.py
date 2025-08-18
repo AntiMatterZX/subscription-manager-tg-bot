@@ -11,7 +11,8 @@ from app.swagger_config import (
     product_model, product_create_model, product_update_model, error_model, validation_error_model,
     telegram_group_model, group_mapping_model, success_message_model,
     subscription_model, subscription_request_model, subscription_response_model, paginated_subscriptions_model,
-    user_model, member_model, kick_user_model, kick_by_email_model, regenerate_invite_model, telegram_response_model
+    user_model, member_model, kick_user_model, kick_by_email_model, regenerate_invite_model, telegram_response_model,
+    regenerate_user_invite_model, invite_link_response_model
 )
 from app.models import User, Subscription, Product, TelegramGroup
 from app.services.telegram import tg_bot
@@ -341,11 +342,11 @@ subscribe_ns = Namespace('subscribe', description='Public subscription creation'
 
 @subscribe_ns.route('')
 class Subscribe(Resource):
-    @subscriptions_ns.doc('create_subscription')
-    @subscriptions_ns.expect(subscription_request_model)
-    @subscriptions_ns.marshal_with(subscription_response_model, code=201)
-    @subscriptions_ns.response(400, 'Bad request', error_model)
-    @subscriptions_ns.response(500, 'Internal server error', error_model)
+    @subscribe_ns.doc('create_subscription')
+    @subscribe_ns.expect(subscription_request_model)
+    @subscribe_ns.marshal_with(subscription_response_model, code=201)
+    @subscribe_ns.response(400, 'Bad request', error_model)
+    @subscribe_ns.response(500, 'Internal server error', error_model)
     def post(self):
         """Create a new subscription"""
         try:
@@ -579,6 +580,108 @@ class RegenerateInvite(Resource):
             return {'success': success, 'message': msg, 'invite_link': invite_link, 'token': token}, status
         except Exception as e:
             logger.exception('Error in /telegram/invite/regenerate')
+            return {'message': str(e)}, 500
+
+@telegram_ns.route('/webhook/<string:token>')
+@telegram_ns.param('token', 'Telegram bot token')
+class TelegramWebhook(Resource):
+    @telegram_ns.doc('telegram_webhook')
+    @telegram_ns.response(200, 'Update processed')
+    @telegram_ns.response(401, 'Invalid token')
+    def post(self, token):
+        """Telegram webhook endpoint"""
+        import os
+        from app.bot.telegram_handler import process_update
+        
+        if token != os.environ.get('TELEGRAM_BOT_TOKEN'):
+            logger.warning(f"Invalid token received in webhook: {token}")
+            return {'message': 'Invalid token'}, 401
+        
+        try:
+            update = request.json
+            logger.info(f"Received Telegram update: {update}")
+            process_update(update)
+            return {'message': 'Update processed successfully'}
+        except Exception as e:
+            logger.error(f"Error processing Telegram update: {e}")
+            return {'message': f'Error processing update: {str(e)}'}, 500
+
+@telegram_ns.route('/webhook/test')
+class TelegramWebhookTest(Resource):
+    @telegram_ns.doc('test_webhook')
+    @telegram_ns.response(200, 'Webhook info retrieved')
+    @telegram_ns.response(500, 'Bot not initialized')
+    def get(self):
+        """Test webhook endpoint"""
+        from app.bot.telegram_client import get_bot
+        
+        bot = get_bot()
+        if not bot:
+            return {'message': 'Bot not initialized'}, 500
+        
+        try:
+            import asyncio
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            
+            try:
+                webhook_info = loop.run_until_complete(bot.get_webhook_info())
+                return {
+                    'message': 'Webhook info retrieved successfully',
+                    'webhook_url': webhook_info.url,
+                    'has_custom_certificate': webhook_info.has_custom_certificate,
+                    'pending_update_count': webhook_info.pending_update_count,
+                    'last_error_date': webhook_info.last_error_date,
+                    'last_error_message': webhook_info.last_error_message,
+                    'max_connections': webhook_info.max_connections
+                }
+            finally:
+                loop.close()
+        except Exception as e:
+            logger.error(f"Error getting webhook info: {e}")
+            return {'message': f'Error getting webhook info: {str(e)}'}, 500
+
+@subscriptions_ns.route('/regenerate-invite')
+class RegenerateInviteLink(Resource):
+    @subscriptions_ns.doc('regenerate_invite_link')
+    @subscriptions_ns.expect(regenerate_user_invite_model)
+    @subscriptions_ns.marshal_with(invite_link_response_model)
+    @subscriptions_ns.response(400, 'Bad request', error_model)
+    @subscriptions_ns.response(404, 'Not found', error_model)
+    @subscriptions_ns.response(500, 'Internal server error', error_model)
+    def post(self):
+        """Regenerate invite link for a subscription"""
+        try:
+            data = request.get_json(force=True) or {}
+            subscription_id = data.get('subscription_id')
+            product_id = data.get('product_id')
+            user_email = data.get('user_email')
+            custom_token = data.get('token')
+
+            if subscription_id:
+                subscription, error = SubscriptionService.regenerate_invite_link(
+                    subscription_id, custom_token
+                )
+            elif product_id and user_email:
+                subscription, error = SubscriptionService.regenerate_invite_link_by_product(
+                    product_id, user_email, custom_token
+                )
+            else:
+                return {'message': 'Either subscription_id or (product_id + user_email) is required'}, 400
+
+            if error:
+                return {'message': error}, 400
+
+            return {
+                'success': True,
+                'message': 'Invite link regenerated successfully',
+                'invite_link': subscription.invite_link_url,
+                'token': subscription.invite_link_token,
+                'subscription_id': subscription.id,
+                'expires_at': subscription.invite_link_expires_at
+            }
+        except Exception as e:
+            logging.exception('Error regenerating invite link')
             return {'message': str(e)}, 500
 
 # Export all namespaces
