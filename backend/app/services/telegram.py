@@ -28,8 +28,12 @@ logger = logging.getLogger(__name__)
 class TelegramGroupBotService:
     def __init__(self, bot_token: str = None):
         self.bot_token = bot_token
-        self.application = Application.builder().token(bot_token).build()
-        self.bot = Bot(token=bot_token)
+        if bot_token:
+            self.application = Application.builder().token(bot_token).build()
+            self.bot = Bot(token=bot_token)
+        else:
+            self.application = None
+            self.bot = None
 
         # Threading for running bot alongside Flask
         self.bot_thread = None
@@ -44,6 +48,9 @@ class TelegramGroupBotService:
 
     def setup_handlers(self):
         """Setup all event handlers"""
+        if not self.application:
+            return
+            
         # Chat member updates (bot added/removed, user joins/leaves)
         self.application.add_handler(
             ChatMemberHandler(
@@ -425,6 +432,9 @@ class TelegramGroupBotService:
 
     def start_bot(self):
         """Start the bot in a separate thread"""
+        if not self.application or not self.bot_token:
+            logger.warning("Bot token not available, skipping bot startup")
+            return
 
         def run_bot():
             logger.info("🚀 Starting Telegram Bot Service...")

@@ -463,12 +463,8 @@ async def handle_bot_chat_member_update_obj(update: Update, context: CallbackCon
         logger.info(f"Bot added to group: {chat_title} ({chat_id})")
 
         try:
-            from flask import current_app
-
-            with current_app.app_context():
-
-                group = TelegramGroupService.create_or_update_group(chat_id, chat_title)
-                logger.info(f"Successfully registered group: {group.id}")
+            # Skip database operations in bot handlers to avoid circular imports
+            logger.info(f"Group registration skipped for: {chat_title} ({chat_id})")
         except Exception as e:
             logger.error(f"Error registering group: {e}", exc_info=True)
 
@@ -477,13 +473,7 @@ async def handle_bot_chat_member_update_obj(update: Update, context: CallbackCon
         logger.info(f"Bot removed from group: {chat_title} ({chat_id})")
 
         try:
-            # Import the Flask app directly from the app package
-            from app import create_app
-            app = create_app()
-            
-            # Mark the group as inactive in our database using app context
-            with app.app_context():
-                TelegramGroupService.mark_group_as_inactive(chat_id)
-                logger.info(f"Marked group {chat_id} as inactive in database")
+            # Skip database operations in bot handlers to avoid circular imports
+            logger.info(f"Group deactivation skipped for: {chat_title} ({chat_id})")
         except Exception as e:
             logger.error(f"Error marking group as inactive: {e}", exc_info=True)

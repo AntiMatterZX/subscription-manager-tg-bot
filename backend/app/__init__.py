@@ -51,28 +51,28 @@ def create_app():
     def api_docs():
         from flask import redirect
         return redirect('/api-docs/')
+    
+    # Add health check endpoint
+    @app.route('/health')
+    def health_check():
+        return {'status': 'healthy', 'message': 'Application is running'}, 200
 
-    # Register original blueprints (for backward compatibility)
-    from app.routes.product_routes import product_bp
-    from app.routes.group_routes import group_bp
-    from app.routes.subscription_routes import subscription_bp
-    from app.routes.telegram_routes import telegram_bp
-    from app.routes.user_routes import user_bp
+    # Legacy routes removed - using Swagger API only
 
-    app.register_blueprint(product_bp, url_prefix="/api/v1")
-    app.register_blueprint(group_bp, url_prefix="/api/v1")
-    app.register_blueprint(subscription_bp, url_prefix="/api/v1")
-    app.register_blueprint(telegram_bp, url_prefix="/api/v1")
-    app.register_blueprint(user_bp, url_prefix="/api/v1")
-
-    # Initialize Telegram bot
-    from app.services.telegram import tg_bot
-    tg_bot.init_app(app)
-    tg_bot.start_bot()
+    # Initialize Telegram bot (only if token is provided)
+    telegram_token = os.environ.get("TELEGRAM_BOT_TOKEN")
+    if telegram_token:
+        from app.services.telegram import tg_bot
+        tg_bot.init_app(app)
+        tg_bot.start_bot()
+    else:
+        print("Warning: TELEGRAM_BOT_TOKEN not set. Telegram bot will not start.")
 
     # Initialize scheduled tasks
-    from app.tasks.subscription_tasks import init_scheduler
-
-    init_scheduler()
+    try:
+        from app.tasks.subscription_tasks import init_scheduler
+        init_scheduler()
+    except Exception as e:
+        print(f"Warning: Failed to initialize scheduler: {e}")
 
     return app

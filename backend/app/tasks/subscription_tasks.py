@@ -1,9 +1,7 @@
 import logging
 from datetime import datetime
 from apscheduler.schedulers.background import BackgroundScheduler
-from app.services import SubscriptionService
-from app.bot.telegram_client import kick_user_from_group
-from app.services.telegram import tg_bot
+# Import services within functions to avoid circular imports
 
 # Configure logging
 logging.basicConfig(
@@ -20,6 +18,10 @@ def check_expired_subscriptions():
     logger.info("Checking for expired subscriptions...")
 
     try:
+        # Import services here to avoid circular imports
+        from app.services.subscription_service import SubscriptionService
+        from app.services.telegram import tg_bot
+        
         # Get all expired subscriptions
         expired_subscriptions = SubscriptionService.get_expired_subscriptions()
 

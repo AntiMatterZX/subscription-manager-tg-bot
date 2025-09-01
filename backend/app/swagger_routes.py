@@ -15,7 +15,11 @@ from app.swagger_config import (
     regenerate_user_invite_model, invite_link_response_model
 )
 from app.models import User, Subscription, Product, TelegramGroup
-from app.services.telegram import tg_bot
+# Import tg_bot conditionally to avoid startup issues
+try:
+    from app.services.telegram import tg_bot
+except ImportError:
+    tg_bot = None
 from sqlalchemy import and_
 import logging
 
@@ -494,7 +498,10 @@ class KickUser(Resource):
             except ValueError:
                 return {'message': 'telegram_user_id must be numeric'}, 400
 
-            success, message = tg_bot.remove_user(chat_id, user_id)
+            if tg_bot:
+                success, message = tg_bot.remove_user(chat_id, user_id)
+            else:
+                success, message = False, "Telegram bot not available"
             status = 200 if success else 400
             return {'success': success, 'message': message}, status
         except Exception as e:
@@ -539,7 +546,10 @@ class KickByEmail(Resource):
             chat_id = int(str(product.telegram_group.telegram_group_id))
             user_id = int(str(user.telegram_user_id))
 
-            success, message = tg_bot.remove_user(chat_id, user_id)
+            if tg_bot:
+                success, message = tg_bot.remove_user(chat_id, user_id)
+            else:
+                success, message = False, "Telegram bot not available"
             status = 200 if success else 400
             return {'success': success, 'message': message}, status
         except Exception as e:
@@ -575,7 +585,10 @@ class RegenerateInvite(Resource):
             else:
                 return {'message': 'Either product_id or telegram_group_id is required'}, 400
 
-            success, msg, invite_link = tg_bot.create_invite_link(chat_id, token)
+            if tg_bot:
+                success, msg, invite_link = tg_bot.create_invite_link(chat_id, token)
+            else:
+                success, msg, invite_link = False, "Telegram bot not available", None
             status = 200 if success else 400
             return {'success': success, 'message': msg, 'invite_link': invite_link, 'token': token}, status
         except Exception as e:
