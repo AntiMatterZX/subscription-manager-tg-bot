@@ -59,14 +59,15 @@ def create_app():
 
     # Legacy routes removed - using Swagger API only
 
-    # Initialize Telegram bot (only if token is provided)
+    # Initialize Telegram bot (only if token is provided and not in production)
     telegram_token = os.environ.get("TELEGRAM_BOT_TOKEN")
-    if telegram_token:
+    flask_env = os.environ.get("FLASK_ENV", "production")
+    if telegram_token and flask_env == "development":
         from app.services.telegram import tg_bot
         tg_bot.init_app(app)
         tg_bot.start_bot()
     else:
-        print("Warning: TELEGRAM_BOT_TOKEN not set. Telegram bot will not start.")
+        print("Warning: Telegram bot disabled in production or token not set.")
 
     # Initialize scheduled tasks
     try:

@@ -624,64 +624,7 @@ class RegenerateInvite(Resource):
             logger.exception('Error in /telegram/invite/regenerate')
             return {'message': str(e)}, 500
 
-@telegram_ns.route('/webhook/<string:token>')
-@telegram_ns.param('token', 'Telegram bot token')
-class TelegramWebhook(Resource):
-    @telegram_ns.doc('telegram_webhook')
-    @telegram_ns.response(200, 'Update processed')
-    @telegram_ns.response(401, 'Invalid token')
-    def post(self, token):
-        """Telegram webhook endpoint"""
-        import os
-        from app.bot.telegram_handler import process_update
-        
-        if token != os.environ.get('TELEGRAM_BOT_TOKEN'):
-            logger.warning(f"Invalid token received in webhook: {token}")
-            return {'message': 'Invalid token'}, 401
-        
-        try:
-            update = request.json
-            logger.info(f"Received Telegram update: {update}")
-            process_update(update)
-            return {'message': 'Update processed successfully'}
-        except Exception as e:
-            logger.error(f"Error processing Telegram update: {e}")
-            return {'message': f'Error processing update: {str(e)}'}, 500
 
-@telegram_ns.route('/webhook/test')
-class TelegramWebhookTest(Resource):
-    @telegram_ns.doc('test_webhook')
-    @telegram_ns.response(200, 'Webhook info retrieved')
-    @telegram_ns.response(500, 'Bot not initialized')
-    def get(self):
-        """Test webhook endpoint"""
-        from app.bot.telegram_client import get_bot
-        
-        bot = get_bot()
-        if not bot:
-            return {'message': 'Bot not initialized'}, 500
-        
-        try:
-            import asyncio
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            
-            try:
-                webhook_info = loop.run_until_complete(bot.get_webhook_info())
-                return {
-                    'message': 'Webhook info retrieved successfully',
-                    'webhook_url': webhook_info.url,
-                    'has_custom_certificate': webhook_info.has_custom_certificate,
-                    'pending_update_count': webhook_info.pending_update_count,
-                    'last_error_date': webhook_info.last_error_date,
-                    'last_error_message': webhook_info.last_error_message,
-                    'max_connections': webhook_info.max_connections
-                }
-            finally:
-                loop.close()
-        except Exception as e:
-            logger.error(f"Error getting webhook info: {e}")
-            return {'message': f'Error getting webhook info: {str(e)}'}, 500
 
 @subscriptions_ns.route('/regenerate-invite')
 class RegenerateInviteLink(Resource):
