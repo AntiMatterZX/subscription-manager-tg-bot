@@ -23,8 +23,7 @@ validation_error_model = api.model('ValidationError', {
 product_model = api.model('Product', {
     'id': fields.String(required=True, description='Product ID (1-24 characters)'),
     'name': fields.String(required=True, description='Product name'),
-    'description': fields.String(description='Product description'),
-    'telegram_groups': fields.List(fields.Nested('TelegramGroup'), description='Mapped Telegram groups')
+    'description': fields.String(description='Product description')
 })
 
 product_create_model = api.model('ProductCreate', {
@@ -46,6 +45,9 @@ telegram_group_model = api.model('TelegramGroup', {
     'product_id': fields.String(description='Mapped product ID'),
     'is_active': fields.Boolean(description='Whether group is active')
 })
+
+# Add telegram_groups to product model after telegram_group_model is defined
+product_model['telegram_groups'] = fields.List(fields.Nested(telegram_group_model), description='Mapped Telegram groups')
 
 group_mapping_model = api.model('GroupMapping', {
     'telegram_group_id': fields.String(required=True, description='Telegram group ID'),
