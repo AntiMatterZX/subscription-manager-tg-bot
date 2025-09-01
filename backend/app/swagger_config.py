@@ -23,7 +23,8 @@ validation_error_model = api.model('ValidationError', {
 product_model = api.model('Product', {
     'id': fields.String(required=True, description='Product ID (1-24 characters)'),
     'name': fields.String(required=True, description='Product name'),
-    'description': fields.String(description='Product description')
+    'description': fields.String(description='Product description'),
+    'telegram_groups': fields.List(fields.Nested('TelegramGroup'), description='Mapped Telegram groups')
 })
 
 product_create_model = api.model('ProductCreate', {
@@ -49,6 +50,10 @@ telegram_group_model = api.model('TelegramGroup', {
 group_mapping_model = api.model('GroupMapping', {
     'telegram_group_id': fields.String(required=True, description='Telegram group ID'),
     'telegram_group_name': fields.String(required=True, description='Telegram group name')
+})
+
+group_unmap_model = api.model('GroupUnmap', {
+    'telegram_group_id': fields.String(description='Telegram group ID (optional - if not provided, unmaps all groups)')
 })
 
 # Subscription models

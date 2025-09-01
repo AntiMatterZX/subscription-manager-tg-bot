@@ -9,7 +9,7 @@ from app.schemas import (
 )
 from app.swagger_config import (
     product_model, product_create_model, product_update_model, error_model, validation_error_model,
-    telegram_group_model, group_mapping_model, success_message_model,
+    telegram_group_model, group_mapping_model, group_unmap_model, success_message_model,
     subscription_model, subscription_request_model, subscription_response_model, paginated_subscriptions_model,
     user_model, member_model, kick_user_model, kick_by_email_model, regenerate_invite_model, telegram_response_model,
     regenerate_user_invite_model, invite_link_response_model
@@ -131,18 +131,34 @@ class ProductMapping(Resource):
 @products_ns.param('product_id', 'Product ID (string)')
 class ProductUnmapping(Resource):
     @products_ns.doc('unmap_product')
+    @products_ns.expect(group_unmap_model, validate=False)
     @products_ns.marshal_with(success_message_model)
     @products_ns.response(404, 'No mapping found', error_model)
     @products_ns.response(500, 'Internal server error', error_model)
     def delete(self, product_id):
-        """Unmap a product from a Telegram group"""
+        """Unmap a product from Telegram groups"""
         try:
-            success = TelegramGroupService.unmap_product(product_id)
+            data = request.json or {}
+            telegram_group_id = data.get('telegram_group_id')
+            success = TelegramGroupService.unmap_product(product_id, telegram_group_id)
             if not success:
                 return {'message': 'No mapping found for this product'}, 404
-            return {'message': 'Product unmapped successfully'}
+            if telegram_group_id:
+                return {'message': 'Group unmapped successfully'}
+            else:
+                return {'message': 'All groups unmapped successfully'}
         except Exception as e:
             return {'message': str(e)}, 500
+
+@products_ns.route('/<string:product_id>/groups')
+@products_ns.param('product_id', 'Product ID (string)')
+class ProductGroups(Resource):
+    @products_ns.doc('list_product_groups')
+    @products_ns.marshal_list_with(telegram_group_model)
+    def get(self, product_id):
+        """List Telegram groups for a product"""
+        groups = TelegramGroupService.get_groups_by_product_id(product_id)
+        return telegram_groups_schema.dump(groups)
 
 @products_ns.route('/<string:product_id>/members')
 @products_ns.param('product_id', 'Product ID (string)')
@@ -484,9 +500,13 @@ class KickUser(Resource):
             chat_id = None
             if product_id:
                 product = Product.query.get(product_id)
-                if not product or not product.telegram_group:
-                    return {'message': 'Product not found or not mapped to a Telegram group'}, 404
-                telegram_group_id = product.telegram_group.telegram_group_id
+                if not product or not product.telegram_groups:
+                    return {'message': 'Product not found or not mapped to any Telegram groups'}, 404
+                # Use first active group
+                telegram_group = next((g for g in product.telegram_groups if g.is_active), None)
+                if not telegram_group:
+                    return {'message': 'Product has no active Telegram groups'}, 404
+                telegram_group_id = telegram_group.telegram_group_id
                 chat_id = int(str(telegram_group_id))
             elif telegram_group_id:
                 chat_id = int(str(telegram_group_id))
@@ -540,10 +560,15 @@ class KickByEmail(Resource):
                 return {'message': 'Active/pending subscription not found for user and product'}, 404
 
             product = Product.query.get(product_id)
-            if not product or not product.telegram_group:
-                return {'message': 'Product not mapped to a Telegram group'}, 404
+            if not product or not product.telegram_groups:
+                return {'message': 'Product not mapped to any Telegram groups'}, 404
+            
+            # Use first active group
+            telegram_group = next((g for g in product.telegram_groups if g.is_active), None)
+            if not telegram_group:
+                return {'message': 'Product has no active Telegram groups'}, 404
 
-            chat_id = int(str(product.telegram_group.telegram_group_id))
+            chat_id = int(str(telegram_group.telegram_group_id))
             user_id = int(str(user.telegram_user_id))
 
             if tg_bot:
@@ -576,9 +601,13 @@ class RegenerateInvite(Resource):
             chat_id = None
             if product_id:
                 product = Product.query.get(product_id)
-                if not product or not product.telegram_group:
-                    return {'message': 'Product not found or not mapped to a Telegram group'}, 404
-                telegram_group_id = product.telegram_group.telegram_group_id
+                if not product or not product.telegram_groups:
+                    return {'message': 'Product not found or not mapped to any Telegram groups'}, 404
+                # Use first active group
+                telegram_group = next((g for g in product.telegram_groups if g.is_active), None)
+                if not telegram_group:
+                    return {'message': 'Product has no active Telegram groups'}, 404
+                telegram_group_id = telegram_group.telegram_group_id
                 chat_id = int(str(telegram_group_id))
             elif telegram_group_id:
                 chat_id = int(str(telegram_group_id))

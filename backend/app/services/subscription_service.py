@@ -111,8 +111,13 @@ class SubscriptionService:
             if not product:
                 return None, "Product not found"
 
-            if not product.telegram_group:
-                return None, "Product is not mapped to a Telegram group"
+            if not product.telegram_groups:
+                return None, "Product is not mapped to any Telegram groups"
+            
+            # Use the first active group
+            telegram_group = next((g for g in product.telegram_groups if g.is_active), None)
+            if not telegram_group:
+                return None, "Product has no active Telegram groups"
 
             # Get or create user
             user = User.query.filter_by(email=email).first()
@@ -134,7 +139,7 @@ class SubscriptionService:
             subscription = Subscription(
                 user_id=user.id,
                 product_id=product_id,
-                telegram_group_id=product.telegram_group.id,
+                telegram_group_id=telegram_group.id,
                 subscription_expires_at=subscription_expires_at,
                 status="pending_join",
             )
@@ -145,7 +150,7 @@ class SubscriptionService:
 
             invite_token = str(uuid.uuid4())[:32]
             success, _, invite_link = tg_bot.create_invite_link(
-                product.telegram_group.telegram_group_id, invite_token
+                telegram_group.telegram_group_id, invite_token
             )
 
             if not success or not invite_link:

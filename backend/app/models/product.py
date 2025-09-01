@@ -16,9 +16,9 @@ class Product(db.Model):
         onupdate=lambda: datetime.now(timezone.utc),
     )
 
-    # Relationship with TelegramGroup (one-to-one)
-    telegram_group = db.relationship(
-        "TelegramGroup", uselist=False, back_populates="product"
+    # Relationship with TelegramGroup (one-to-many)
+    telegram_groups = db.relationship(
+        "TelegramGroup", back_populates="product", cascade="all, delete-orphan"
     )
 
     # Relationship with Subscription (one-to-many)

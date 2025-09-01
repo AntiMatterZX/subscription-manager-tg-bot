@@ -9,7 +9,7 @@ class TelegramGroup(db.Model):
     telegram_group_id = db.Column(db.String(100), unique=True, nullable=False)
     telegram_group_name = db.Column(db.String(255), nullable=False)
     product_id = db.Column(
-        db.String(24), db.ForeignKey("products.id"), unique=True, nullable=True
+        db.String(24), db.ForeignKey("products.id"), nullable=True
     )
     is_active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
@@ -19,8 +19,8 @@ class TelegramGroup(db.Model):
         onupdate=lambda: datetime.now(timezone.utc),
     )
 
-    # Relationship with Product (one-to-one)
-    product = db.relationship("Product", back_populates="telegram_group")
+    # Relationship with Product (many-to-one)
+    product = db.relationship("Product", back_populates="telegram_groups")
 
     # Relationship with Subscription (one-to-many)
     subscriptions = db.relationship(

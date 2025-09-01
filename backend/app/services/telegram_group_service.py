@@ -23,6 +23,10 @@ class TelegramGroupService:
         return TelegramGroup.query.filter_by(
             telegram_group_id=telegram_group_id_str
         ).first()
+    
+    @staticmethod
+    def get_groups_by_product_id(product_id):
+        return TelegramGroup.query.filter_by(product_id=product_id).all()
 
     @staticmethod
     def create_or_update_group(telegram_group_id, telegram_group_name):
@@ -58,10 +62,6 @@ class TelegramGroupService:
             if not product:
                 return None, "Product not found"
 
-            # Check if product is already mapped to a group
-            if product.telegram_group:
-                return None, "Product is already mapped to a group"
-
             # Convert telegram_group_id to string
             telegram_group_id_str = str(telegram_group_id)
 
@@ -75,7 +75,7 @@ class TelegramGroupService:
                     telegram_group_name=telegram_group_name,
                 )
                 db.session.add(group)
-            elif group.product_id:
+            elif group.product_id and group.product_id != product_id:
                 return None, "Telegram group is already mapped to another product"
 
             # Map the product to the group
@@ -87,17 +87,28 @@ class TelegramGroupService:
             raise e
 
     @staticmethod
-    def unmap_product(product_id):
+    def unmap_product(product_id, telegram_group_id=None):
         try:
-            # Find the group mapped to this product
-            group = TelegramGroup.query.filter_by(product_id=product_id).first()
-            if not group:
-                return False
-
-            # Unmap the product
-            group.product_id = None
-            db.session.commit()
-            return True
+            if telegram_group_id:
+                # Unmap specific group
+                group = TelegramGroup.query.filter_by(
+                    product_id=product_id, 
+                    telegram_group_id=str(telegram_group_id)
+                ).first()
+                if not group:
+                    return False
+                group.product_id = None
+                db.session.commit()
+                return True
+            else:
+                # Unmap all groups for this product
+                groups = TelegramGroup.query.filter_by(product_id=product_id).all()
+                if not groups:
+                    return False
+                for group in groups:
+                    group.product_id = None
+                db.session.commit()
+                return True
         except SQLAlchemyError as e:
             db.session.rollback()
             raise e

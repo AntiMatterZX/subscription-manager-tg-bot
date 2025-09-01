@@ -8,9 +8,9 @@ class ProductSchema(Schema):
     created_at = fields.DateTime(dump_only=True)
     updated_at = fields.DateTime(dump_only=True)
 
-    # Include telegram_group information if available
-    telegram_group = fields.Nested(
-        "TelegramGroupSchema", exclude=("product",), dump_only=True
+    # Include telegram_groups information if available
+    telegram_groups = fields.Nested(
+        "TelegramGroupSchema", exclude=("product",), dump_only=True, many=True
     )
 
 
