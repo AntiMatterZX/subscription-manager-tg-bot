@@ -29,20 +29,11 @@ class TelegramGroupBotService:
     def __init__(self, bot_token: str = None):
         self.bot_token = bot_token
         if bot_token:
-            from telegram.request import HTTPXRequest
-            import httpx
+            import os
+            os.environ['TELEGRAM_DISABLE_WEB_PAGE_PREVIEW'] = '1'
             
-            # Create custom request with timeout and proper config
-            request = HTTPXRequest(
-                connection_pool_size=1,
-                read_timeout=30,
-                write_timeout=30,
-                connect_timeout=30,
-                pool_timeout=30
-            )
-            
-            self.application = Application.builder().token(bot_token).request(request).build()
-            self.bot = Bot(token=bot_token, request=request)
+            self.application = Application.builder().token(bot_token).build()
+            self.bot = Bot(token=bot_token)
         else:
             self.application = None
             self.bot = None
@@ -453,18 +444,16 @@ class TelegramGroupBotService:
             self.running = True
 
             try:
-                # Disable webhook mode explicitly
                 import asyncio
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
-                self.event_loop = loop
+                import sys
+                if sys.platform == 'linux':
+                    asyncio.set_event_loop_policy(asyncio.DefaultEventLoopPolicy())
                 
-                self.application.run_polling(drop_pending_updates=True)
+                self.application.run_polling(drop_pending_updates=True, close_loop=False)
             except Exception as e:
                 logger.error(f"Error running bot: {e}")
             finally:
                 self.running = False
-                self.event_loop = None
 
         if not self.running:
             self.bot_thread = threading.Thread(target=run_bot, daemon=True)

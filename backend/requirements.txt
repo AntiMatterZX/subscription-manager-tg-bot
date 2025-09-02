@@ -10,4 +10,4 @@ python-dotenv==1.0.0
 apscheduler==3.10.4
 gunicorn==21.2.0
 eventlet==0.33.3
-httpx==0.24.1
+httpx~=0.25.0
