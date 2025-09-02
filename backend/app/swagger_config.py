@@ -6,7 +6,9 @@ api = Api(
     title='Subscription Manager API',
     description='API for managing products, subscriptions, and Telegram groups',
     doc='/api-docs/',
-    prefix='/api'
+    prefix='/api',
+    # Use local Swagger UI files to avoid CDN issues
+    validate=False
 )
 
 # Define common models
