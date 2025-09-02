@@ -29,8 +29,20 @@ class TelegramGroupBotService:
     def __init__(self, bot_token: str = None):
         self.bot_token = bot_token
         if bot_token:
-            self.application = Application.builder().token(bot_token).build()
-            self.bot = Bot(token=bot_token)
+            from telegram.request import HTTPXRequest
+            import httpx
+            
+            # Create custom request with timeout and proper config
+            request = HTTPXRequest(
+                connection_pool_size=1,
+                read_timeout=30,
+                write_timeout=30,
+                connect_timeout=30,
+                pool_timeout=30
+            )
+            
+            self.application = Application.builder().token(bot_token).request(request).build()
+            self.bot = Bot(token=bot_token, request=request)
         else:
             self.application = None
             self.bot = None
