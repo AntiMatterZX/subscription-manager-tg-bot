@@ -440,18 +440,12 @@ class TelegramGroupBotService:
             logger.info("🚀 Starting Telegram Bot Service...")
             self.running = True
 
-            # Create and set the event loop for the bot thread
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            self.event_loop = loop
-
             try:
-                self.application.run_polling(allowed_updates=Update.ALL_TYPES)
+                self.application.run_polling()
             except Exception as e:
                 logger.error(f"Error running bot: {e}")
             finally:
                 self.running = False
-                self.event_loop = None
 
         if not self.running:
             self.bot_thread = threading.Thread(target=run_bot, daemon=True)
