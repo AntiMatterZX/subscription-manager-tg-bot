@@ -12,7 +12,7 @@ class TelegramGroupSchema(Schema):
 
     # Include product information if available
     product = fields.Nested(
-        "ProductSchema", exclude=("telegram_group",), dump_only=True
+        "ProductSchema", exclude=("telegram_groups",), dump_only=True
     )
 
 
