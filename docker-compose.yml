@@ -17,8 +17,7 @@ services:
 
   backend:
     build: ./backend
-    restart:
-      always
+    restart: always
     volumes:
       - ./backend:/app
     ports:
@@ -32,8 +31,10 @@ services:
       - POSTGRES_DB=${POSTGRES_DB:-tg_manager}
       - POSTGRES_HOST=db
       - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - PGPASSWORD=${POSTGRES_PASSWORD:-postgres}
     depends_on:
-      - db
+      db:
+        condition: service_healthy
 
 volumes:
   postgres_data:
