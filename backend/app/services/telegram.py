@@ -441,11 +441,18 @@ class TelegramGroupBotService:
             self.running = True
 
             try:
-                self.application.run_polling()
+                # Disable webhook mode explicitly
+                import asyncio
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                self.event_loop = loop
+                
+                self.application.run_polling(drop_pending_updates=True)
             except Exception as e:
                 logger.error(f"Error running bot: {e}")
             finally:
                 self.running = False
+                self.event_loop = None
 
         if not self.running:
             self.bot_thread = threading.Thread(target=run_bot, daemon=True)
