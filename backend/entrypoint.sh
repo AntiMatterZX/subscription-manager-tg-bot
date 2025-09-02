@@ -3,7 +3,7 @@ set -e
 
 # Wait for PostgreSQL to be ready
 echo "Waiting for PostgreSQL to be ready..."
-until pg_isready -h "$POSTGRES_HOST" -U "$POSTGRES_USER"; do
+until PGPASSWORD="$POSTGRES_PASSWORD" pg_isready -h "$POSTGRES_HOST" -U "$POSTGRES_USER"; do
   echo "PostgreSQL is unavailable - sleeping"
   sleep 1
 done
@@ -11,7 +11,7 @@ echo "PostgreSQL is ready!"
 
 # Create database if it doesn't exist
 echo "Ensuring database exists..."
-psql -h "$POSTGRES_HOST" -U "$POSTGRES_USER" -tc "SELECT 1 FROM pg_database WHERE datname = '$POSTGRES_DB'" | grep -q 1 || psql -h "$POSTGRES_HOST" -U "$POSTGRES_USER" -c "CREATE DATABASE $POSTGRES_DB"
+PGPASSWORD="$POSTGRES_PASSWORD" psql -h "$POSTGRES_HOST" -U "$POSTGRES_USER" -tc "SELECT 1 FROM pg_database WHERE datname = '$POSTGRES_DB'" | grep -q 1 || PGPASSWORD="$POSTGRES_PASSWORD" psql -h "$POSTGRES_HOST" -U "$POSTGRES_USER" -c "CREATE DATABASE $POSTGRES_DB"
 
 # Check if the migrations directory exists, if not, initialize and migrate
 if [ ! -d "migrations" ]; then
