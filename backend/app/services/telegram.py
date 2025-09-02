@@ -12,7 +12,6 @@ from telegram.ext import (
     filters,
     ChatJoinRequestHandler,
 )
-from telegram.request import HTTPXRequest
 from telegram.constants import ChatMemberStatus
 from telegram.error import TelegramError
 import threading
@@ -30,10 +29,8 @@ class TelegramGroupBotService:
     def __init__(self, bot_token: str = None):
         self.bot_token = bot_token
         if bot_token:
-            # Create custom request with proper configuration
-            request = HTTPXRequest()
-            self.application = Application.builder().token(bot_token).request(request).build()
-            self.bot = Bot(token=bot_token, request=request)
+            self.application = Application.builder().token(bot_token).build()
+            self.bot = Bot(token=bot_token)
         else:
             self.application = None
             self.bot = None
