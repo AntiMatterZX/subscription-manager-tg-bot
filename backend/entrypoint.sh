@@ -25,4 +25,4 @@ flask db upgrade
 
 # Start the application
 echo "Starting application server..."
-exec gunicorn --worker-class eventlet -w 1 "run:app" --bind "0.0.0.0:5000"
+exec gunicorn --worker-class sync -w 1 "run:app" --bind "0.0.0.0:5000"

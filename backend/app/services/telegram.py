@@ -77,6 +77,10 @@ class TelegramGroupBotService:
 
         self.application.add_handler(ChatJoinRequestHandler(self._handle_join_request))
         
+        # Add test command handler
+        from telegram.ext import CommandHandler
+        self.application.add_handler(CommandHandler("test", self._handle_test_command))
+        
         # Enable chat member updates
         self.application.bot_data['chat_member_updates'] = True
 
@@ -242,6 +246,11 @@ class TelegramGroupBotService:
     ) -> Optional[str]:
         """Try to identify which invite link was used"""
         return None
+    
+    async def _handle_test_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Test command to verify bot is working"""
+        await update.message.reply_text("✅ Bot is working! I can receive messages.")
+        logger.info(f"Test command received from {update.effective_user.full_name}")
 
     async def _handle_join_request(
         self, update: Update, context: ContextTypes.DEFAULT_TYPE
@@ -439,29 +448,46 @@ class TelegramGroupBotService:
     def start_bot(self):
         """Start the bot in a separate thread"""
         if not self.application or not self.bot_token:
-            logger.warning("Bot token not available, skipping bot startup")
+            logger.error("Bot token not available, skipping bot startup")
+            print(f"DEBUG: Bot token exists: {bool(self.bot_token)}")
             return
 
+        print(f"DEBUG: Starting bot with token: {self.bot_token[:10]}...")
+        
         def run_bot():
             logger.info("🚀 Starting Telegram Bot Service...")
+            print("DEBUG: Bot thread started")
             self.running = True
 
             try:
+                print("DEBUG: About to start polling")
+                import asyncio
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                self.event_loop = loop
+                
                 self.application.run_polling(
                     drop_pending_updates=True,
                     allowed_updates=[
                         'message', 'chat_member', 'my_chat_member', 'chat_join_request'
-                    ]
+                    ],
+                    stop_signals=None
                 )
+                print("DEBUG: Polling started successfully")
             except Exception as e:
                 logger.error(f"Error running bot: {e}")
+                print(f"DEBUG: Bot error: {e}")
+                import traceback
+                traceback.print_exc()
             finally:
                 self.running = False
+                print("DEBUG: Bot stopped")
 
         if not self.running:
             self.bot_thread = threading.Thread(target=run_bot, daemon=True)
             self.bot_thread.start()
             logger.info("✅ Bot service started in background thread")
+            print("DEBUG: Bot thread created")
 
     def stop_bot(self):
         """Stop the bot"""
