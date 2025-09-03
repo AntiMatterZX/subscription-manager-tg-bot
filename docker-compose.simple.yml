@@ -39,18 +39,6 @@ services:
     networks:
       - app-network
 
-  frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile.prod
-    restart: always
-    environment:
-      - VITE_API_URL=https://bot.rangaone.finance/api
-    networks:
-      - app-network
-
-
-
 volumes:
   postgres_data:
 
