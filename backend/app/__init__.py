@@ -35,7 +35,11 @@ def create_app():
 
     # Initialize Swagger API
     from app.swagger_config import api
-    api.init_app(app)
+    # Configure API for HTTPS in production
+    if os.environ.get('FLASK_ENV') == 'production':
+        api.init_app(app, doc='/api-docs/', base_url='https://bot.rangaone.finance')
+    else:
+        api.init_app(app)
 
     # Register Swagger namespaces
     from app.swagger_routes import products_ns, groups_ns, subscriptions_ns, users_ns, telegram_ns, subscribe_ns
@@ -51,6 +55,14 @@ def create_app():
     def api_docs():
         from flask import redirect
         return redirect('/api-docs/')
+    
+    # Handle HTTPS in production
+    @app.before_request
+    def force_https():
+        from flask import request, redirect, url_for
+        if not request.is_secure and app.config.get('FLASK_ENV') == 'production':
+            if request.headers.get('X-Forwarded-Proto') != 'https':
+                return redirect(request.url.replace('http://', 'https://', 1))
     
     # Add health check endpoint
     @app.route('/health')
