@@ -76,6 +76,9 @@ class TelegramGroupBotService:
         )
 
         self.application.add_handler(ChatJoinRequestHandler(self._handle_join_request))
+        
+        # Enable chat member updates
+        self.application.bot_data['chat_member_updates'] = True
 
     async def _handle_my_chat_member_update(
         self, update: Update, context: ContextTypes.DEFAULT_TYPE
@@ -444,12 +447,12 @@ class TelegramGroupBotService:
             self.running = True
 
             try:
-                import asyncio
-                import sys
-                if sys.platform == 'linux':
-                    asyncio.set_event_loop_policy(asyncio.DefaultEventLoopPolicy())
-                
-                self.application.run_polling(drop_pending_updates=True, close_loop=False)
+                self.application.run_polling(
+                    drop_pending_updates=True,
+                    allowed_updates=[
+                        'message', 'chat_member', 'my_chat_member', 'chat_join_request'
+                    ]
+                )
             except Exception as e:
                 logger.error(f"Error running bot: {e}")
             finally:
