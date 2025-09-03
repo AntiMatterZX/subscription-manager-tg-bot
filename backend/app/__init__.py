@@ -37,7 +37,7 @@ def create_app():
     from app.swagger_config import api
     # Configure API for HTTPS in production
     if os.environ.get('FLASK_ENV') == 'production':
-        api.init_app(app, doc='/api-docs/', base_url='https://bot.rangaone.finance')
+        api.init_app(app, doc='/api-docs/', base_url='https://bot.rangaone.finance:5000')
     else:
         api.init_app(app)
 
